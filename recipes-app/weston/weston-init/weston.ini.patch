@@ -1,0 +1,35 @@
+--- a/weston.ini	2022-01-25 10:47:24.037925532 +0200
++++ b/weston.ini	2022-01-30 10:06:25.920230118 +0200
+@@ -5,14 +5,15 @@
+ #shell=desktop-shell.so
+ #gbm-format=xrgb2101010
+ require-input=false
++idle-time=600
+ 
+-#[shell]
++[shell]
+ #background-image=/usr/share/backgrounds/gnome/Aqua.jpg
+ #background-color=0xff002244
+ #background-type=tile
+ #clock-format=minutes
+ #panel-color=0x90ff0000
+-#locking=true
++locking=false
+ #animation=zoom
+ #startup-animation=fade
+ #binding-modifier=ctrl
+@@ -25,6 +26,14 @@ require-input=false
+ #homescreen=/usr/share/backgrounds/gnome/Blinds.jpg
+ #animation=fade
+ 
++[launcher]
++icon=/usr/share/icons/hicolor/24x24/apps/chromium.png
++path=/usr/bin/chromium --start-maximized
++
++[launcher]
++icon=/usr/share/icons/gnome/24x24/apps/utilities-terminal.png
++path=/usr/bin/weston-terminal
++
+ #[launcher]
+ #icon=/usr/share/icons/gnome/24x24/apps/utilities-terminal.png
+ #path=/usr/bin/gnome-terminal
