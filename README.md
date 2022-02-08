@@ -17,9 +17,15 @@ Here is a prebuilt image for Intel NUC. See below how to get the image in your d
 
 > You may need to update `date -s "2022..."` if your device has no time to handle https-pages.
 
+This page explains in details the changes made from Yocto/Poky baseline. In case, you just want to build the Webbox image:
+- [Setup Yocto build](#setup-yocto-build)
+- Add the projects below with `clone` and `bitbake-layers add-layer`
+- Build [Webbox distro](#webbox-distro)
+
 ## Contents
 
-- [Setup build](#setup-build)
+- [Setup Yocto build](#setup-yocto-build)
+- [Build Weston image](#build-weston-image)
 - [Build Qt test app](#build-qt-test-app)
 - [Test on qemu](#test-on-qemu)
 - [Test on Intel NUC](#test-on-intel-nuc)
@@ -27,10 +33,11 @@ Here is a prebuilt image for Intel NUC. See below how to get the image in your d
 - [Chromium browser](#chromium-browser)
 - [Make it yours](#make-it-yours)
 - [Gamepad controller](#gamepad-controller)
-- [Webbox image](#webbox-image)
+- [Audio support](#audio-support)
+- [Webbox distro](#webbox-distro)
 - [Start application](#start-application)
 
-## Setup build
+## Setup Yocto build
 
 Setup Yocto build for poky, see Yocto Quick Build https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html
 ```
@@ -40,23 +47,25 @@ Setup Yocto build for poky, see Yocto Quick Build https://docs.yoctoproject.org/
 ~/$ cd poky
 ```
 
-Build weston image, see images explained at https://docs.yoctoproject.org/ref-manual/images.html (shortly: weston is here for wayland referencce implementation and its's about to replace old X11 based GUI).
+## Build Weston image
+
+Build weston image to see build setup is good, see images explained at https://docs.yoctoproject.org/ref-manual/images.html
 ```
 # By default machine is qemux86-64 
 ~/poky$ source oe-init-build-env
 ~/poky/build$ time bitbake core-image-weston
 ```
 
+> Briefly, Weston is a wayland referencce implementation and its's about to replace old X11 based GUI.
+
 ## Build Qt test app
 
 > You may be interested to use Qt's repo [Boot to Qt](https://doc.qt.io/QtForDeviceCreation/b2qt-index.html). I'm doing this manually just to dig in to more details.
 
-Download Qt and our Qt test applications (ie. this project)
+Download Qt (Qt test application is from above).
 ```
 ~/poky/build$ git clone git://code.qt.io/yocto/meta-qt6.git ../meta-qt6/
 ~/poky/build$ bitbake-layers add-layer ../meta-qt6
-~/poky/build$ git clone git@github.com:minimindgames/meta-webbox.git ../meta-webbox/
-~/poky/build$ bitbake-layers add-layer ../meta-webbox
 ```
 
 Add Qt test app named as `qapp` in `~/poky/build/conf/local.conf`.
@@ -104,7 +113,7 @@ Download support for Intel
 
 Build for i7-machine. Actually, my NUC has i3 but I'm feeling lucky.
 ```
-~/poky/build$ export MACHINE=raspberrypi3 # or eg. echo 'MACHINE = "intel-corei7-64"' >> conf/local.conf
+~/poky/build$ export MACHINE=intel-corei7-64 # or eg. echo 'MACHINE = "intel-corei7-64"' >> conf/local.conf
 ~/poky/build$ time bitbake core-image-weston
 ```
 
@@ -218,7 +227,7 @@ Awesome! That was easier than expected.
 
 Linux `init` system was good back in 80s, but nowadays `systemd` is used for better control of system services. Modify `build/conf/local.conf` to use systemd.
 ```
-DISTRO_FEATURES:append = " systemd"
+DISTRO_FEATURES:append = " pam systemd"
 DISTRO_FEATURES_BACKFILL_CONSIDERED += "sysvinit"
 VIRTUAL-RUNTIME_init_manager = "systemd"
 VIRTUAL-RUNTIME_initscripts = "systemd-compat-units"
@@ -240,7 +249,7 @@ sh-5.1$ whoami
 weston
 ```
 
-## Start application
+## Startup application
 
 This is a web console (and not just another linux box) so let's start to web at boot.
 
@@ -293,20 +302,77 @@ In the picture, you can see my old gamepad for Playstation 3 and a green arrow i
 
 > If your gamepad is not working, check the generated configuration if something could match to your gamepad. Path to config-file should be something like `~/poky/build/tmp/work/corei7-64-intel-common-poky-linux/linux-intel/5.15.1+gitAUTOINC+bee5d6a159_d7d7ea689c-r0/linux-corei7-64-intel-common-standard-build/.config`.
 
-## Webbox image
+## Audio support
 
-Finally, it's kind of dirty to modify `local.conf` extensively, so I made an image which you can use.
+Web gaming and video streaming is no good without audio. ALSA at least seems to be fine when headset is connected directly to NUC, but there is no audio over HDMI. PulseAudio service should get audio working from all sources.
+
+I want to start with weston-image to avoid getting audio support from some of my other changes. Or, if want to use webbox-image then at least drop some changes in `conf/local.conf`.
 ```
-~/poky/build$ time bitbake webbox-image
+BBMASK += "qapp chromium-ozone-wayland linux-intel"
 ```
 
-We should have something like `tmp/deploy/images/intel-corei7-64/webbox-image-intel-corei7-64.wic` which we can flash on NUC.
+First check if ALSA and PulseAudio are already in the original weston-based image.
+```
+~/poky/build$ bitbake -g core-image-weston && cat pn-buildlist | grep -ve "native" | sort | uniq | grep -i 'pulseaudio\|alsa'
+```
+
+ALSA seems to be there as expected because headset was working, but PulseAudio is not. Now cross my fingers and try to find out if some brave soul already has made a recipe for us to use.
+```
+~/poky/build$ bitbake-layers show-recipes pulseaudio
+```
+
+Great! A PulseAudio recipe which seems even to be compatible with our build. In recipe the `pulseaudio-server` package seems to have all we need, like PulseAudio ALSA support, systemd service files and some command line tools (see https://wiki.archlinux.org/title/PulseAudio).
+
+Add PulseAudio in `local.conf`.
+```
+# Pulseaudio with ALSA
+DISTRO_FEATURES:append = " pulseaudio"
+CORE_IMAGE_EXTRA_INSTALL += "pulseaudio pulseaudio-server"
+```
+
+A quick check it's applied before heavy duty build.
+```
+~/poky/build$ bitbake core-image-weston -e |grep ^IMAGE_INSTALL= |grep -i 'alsa\|pulseaudio'
+~/poky/build$ bitbake core-image-weston -e |grep ^DISTRO_FEATURES= |grep -i 'alsa\|pulseaudio'
+```
+
+The both seem to enabled now and pulseaudio also got installed in rootfs.
+```
+runqemu tmp/deploy/images/qemux86-64/webbox-image-qemux86-64.qemuboot.conf nographic
+	<login as root>
+		$ pactl -h
+		$ /usr/bin/pulseaudio -h
+	<ctrl-a, x to exit>
+```
+
+Time to start build and get a cup of coffee, then flash and boot NUC...
+
+Wonders do happen. There is no need to configure anything and even hotplug works out of box. That actually seems a bit too much magic for me so let's take a closer look.
+```
+$ systemctl --user status pulseaudio.socket
+$ systemctl --user status pulseaudio
+$ pactl info
+```
+
+PulseAudio services are there snooping for changes and `pactl info` explains that pulseaudio is also detecting hotplug. If you use `pactl` and dis/connect a headset to NUC's stereo plug, "sink" changes from "analog" to "hdmi".
+
+## Webbox distro
+
+Finally, it's kind of dirty to modify `local.conf` extensively, so this project has distro and image which you can use.
+```
+~/poky/build$ git clone git@github.com:minimindgames/meta-webbox.git ../meta-webbox/
+~/poky/build$ bitbake-layers add-layer ../meta-webbox
+
+~/poky/build$ DISTRO=webbox MACHINE=intel-corei7-64 bitbake webbox-image
+```
+
+Now, we should have something like `tmp/deploy/images/intel-corei7-64/webbox-image-intel-corei7-64.wic`, which we can flash on NUC.
 
 ## Conclusion
 
 We have now a Linux based webbox with Chromium browser.
 
-Let's find and play some great HTML5 games, e.g. at https://itch.io/games/platform-web and https://minimindgames.com/webbox/.
+Let's find and play some great HTML5 games, e.g. at https://itch.io/games/platform-web and see also my games at https://minimindgames.com/webbox/.
 
 ## Tips and tricks
 
