@@ -17,6 +17,11 @@ Here is a prebuilt image for Intel NUC. See below how to get the image in your d
 
 > You may need to update `date -s "2022..."` if your device has no time to handle https-pages.
 
+This page explains in details the changes made from Yocto/Poky baseline, to build it shortly:
+- [Setup Yocto build](#setup-yocto-build)
+- Add the projects below with `clone` and `bitbake-layers add-layer`
+- Build [Webbox distro](#webbox-distro)
+
 ## Contents
 
 - [Setup Yocto build](#setup-yocto-build)
@@ -29,7 +34,7 @@ Here is a prebuilt image for Intel NUC. See below how to get the image in your d
 - [Make it yours](#make-it-yours)
 - [Gamepad controller](#gamepad-controller)
 - [Audio support](#audio-support)
-- [Webbox image](#webbox-image)
+- [Webbox distro](#webbox-distro)
 - [Start application](#start-application)
 
 ## Setup Yocto build
@@ -351,16 +356,13 @@ $ pactl info
 
 PulseAudio services are there snooping for changes and `pactl info` explains that pulseaudio is also detecting hotplug. If you use `pactl` and dis/connect a headset to NUC's stereo plug, "sink" changes from "analog" to "hdmi".
 
-## Webbox image
+## Webbox distro
 
-Finally, it's kind of dirty to modify `local.conf` extensively, so I made an image which you can use.
-
-This project has recipes containing all the changes explained in this page, so you may want to cleanup your `local.conf` when building webbox-image.
+Finally, it's kind of dirty to modify `local.conf` extensively. This project has distro and image containing changes made so far.
 ```
 ~/poky/build$ git clone git@github.com:minimindgames/meta-webbox.git ../meta-webbox/
 ~/poky/build$ bitbake-layers add-layer ../meta-webbox
-
-~/poky/build$ time bitbake webbox-image
+~/poky/build$ DISTRO=webbox MACHINE=intel-corei7-64 bitbake webbox-image
 ```
 
 Now, we should have something like `tmp/deploy/images/intel-corei7-64/webbox-image-intel-corei7-64.wic` which we can flash on NUC.
