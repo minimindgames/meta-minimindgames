@@ -1,5 +1,5 @@
 --- a/weston.ini	2022-01-25 10:47:24.037925532 +0200
-+++ b/weston.ini	2022-01-30 10:06:25.920230118 +0200
++++ b/weston.ini	2022-02-09 15:29:41.954651605 +0200
 @@ -5,14 +5,15 @@
  #shell=desktop-shell.so
  #gbm-format=xrgb2101010
@@ -33,3 +33,14 @@
  #[launcher]
  #icon=/usr/share/icons/gnome/24x24/apps/utilities-terminal.png
  #path=/usr/bin/gnome-terminal
+@@ -60,6 +69,10 @@ require-input=false
+ #mode=1024x768
+ #transform=flipped-90
+ 
++[output]
++name=DP-1
++mode=1920x1080
++
+ #[libinput]
+ #enable_tap=true
+ 

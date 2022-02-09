@@ -34,6 +34,7 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Make it yours](#make-it-yours)
 - [Gamepad controller](#gamepad-controller)
 - [Audio support](#audio-support)
+- [Video resolution](#video-resolution)
 - [Webbox distro](#webbox-distro)
 - [Start application](#start-application)
 
@@ -355,6 +356,19 @@ $ pactl info
 ```
 
 PulseAudio services are there snooping for changes and `pactl info` explains that pulseaudio is also detecting hotplug. If you use `pactl` and dis/connect a headset to NUC's stereo plug, "sink" changes from "analog" to "hdmi".
+
+## Video resolution
+
+I have a TV with 4K resolution which is too much for my NUC. It can display HTML pages and even stream but for gaming it's not slick so I want to use lower resolution. In theory, it's easy to change resolution but there are some caveats.
+
+I thought NUC would use HDMI, because it has a HDMI connector. However, resolution did not change after modifying `weston.ini` or `/proc/cmdline`, so I eventually took a look at `/sys/class/drm/*/status` and found only DP-1 to be "connected". Actually NUC product sheet says `Graphics Output: HDMI 2.0a; USB-C (DP1.2)` so I guess that DP part explains this works in `/etc/xdg/weston/weston.ini`.
+```
+[output]
+name=DP-1
+mode=1920x1080
+```
+
+> If you want to change resolution for good, you should add something like `video=DP-1:1920x1080` in e.g. `/boot/loader/entries/boot.conf` and `mode=current` in `weston.ini`.
 
 ## Webbox distro
 
