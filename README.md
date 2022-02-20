@@ -19,7 +19,7 @@ Here is a prebuilt image for Intel NUC. See below how to get the image in your d
 
 This page explains in details the changes made from Yocto/Poky baseline, to build it shortly:
 - [Setup Yocto build](#setup-yocto-build)
-- Add the projects below with `clone` and `bitbake-layers add-layer`
+- Add (relevant) projects below with `clone` and `bitbake-layers add-layer`
 - Build [Webbox distro](#webbox-distro)
 
 ## Contents
@@ -36,6 +36,8 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Audio support](#audio-support)
 - [Video resolution](#video-resolution)
 - [Webbox distro](#webbox-distro)
+- [Enable WLAN](#enable-wlan)
+- [Secure WLAN](#secure-wlan)
 - [Start application](#start-application)
 
 ## Setup Yocto build
@@ -369,6 +371,67 @@ mode=1920x1080
 ```
 
 > If you want to change resolution for good, you should add something like `video=DP-1:1920x1080` in e.g. `/boot/loader/entries/boot.conf` and `mode=current` in `weston.ini`.
+
+## Enable WLAN
+
+You likely have different WLAN configuration from mine, so here are some ideas how you can debug and enable WLAN.
+ 
+In general, Linux networking is based on classic network/interfaces, Network Manager or systemd with networkd. Webbox has `systemd-networkd` already enabled (ie. loaded at boot) which should be good enough.
+```
+root@intel-corei7-64:~# systemctl status systemd-networkd
+```
+
+My Webbox is based on NUC, which seems to have an onboard WLAN interface.
+```
+root@intel-corei7-64:~# iw dev
+phy#0
+        Interface wlp58s0
+```
+
+By default, NUC seem to be missing WLAN configuration since link is DOWN.
+```
+root@intel-corei7-64:~# ip link show wlp58s0
+4: wlp58s0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop qlen 1000
+```
+
+First we need to enable WLAN interface in systemd network configuration, so create a file `/etc/systemd/network/wlan.network` with contents:
+```
+[Match]
+Name=wl*
+[Network]
+DHCP=ipv4
+```
+
+Then restart network manager to see WLAN is now UP. If you have public WLAN (ie. not secure) then WLAN interface should have IP address too.
+```
+root@intel-corei7-64:~# systemctl restart systemd-networkd
+root@intel-corei7-64:~# ip link show wlp58s0
+4: wlp58s0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue qlen 1000
+```
+
+You should now see your SSID with WLAN scan. Also journal tells if you got IP address via DHCP.
+```
+root@intel-corei7-64:~# iw dev wlp58s0 scan |grep SSID
+root@intel-corei7-64:~# journalctl -u systemd-networkd
+```
+
+## Secure WLAN
+
+My private WLAN has WPA security enabled so NUC needs to know the password. ALso systemd-networkd requires `wpa-supplicant` service for WPA security, see https://wiki.archlinux.org/title/wpa_supplicant.
+
+Enter WLAN password and start wpa_supplicant service.
+```
+root@intel-corei7-64:~# wpa_passphrase 'T2' > /etc/wpa_supplicant/wpa_supplicant-wlp58s0.conf
+# Note: this blocks to wait until you enter your WLAN password
+root@intel-corei7-64:~# systemctl start wpa_supplicant@wlp58s0
+```
+
+Then check the service status is good, WLAN got IP address and then enable the service at boot.
+```
+root@intel-corei7-64:~# systemctl status wpa_supplicant@wlp58s0
+root@intel-corei7-64:~# ip a
+root@intel-corei7-64:~# systemctl enable wpa_supplicant@wlp58s0
+```
 
 ## Webbox distro
 
