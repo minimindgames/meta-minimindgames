@@ -38,6 +38,8 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Webbox distro](#webbox-distro)
 - [Enable WLAN](#enable-wlan)
 - [Secure WLAN](#secure-wlan)
+- [Wake on LAN](#wake-on-lan)
+- [Wake on WLAN](#wake-on-wlan)
 - [Start application](#start-application)
 
 ## Setup Yocto build
@@ -417,7 +419,7 @@ root@intel-corei7-64:~# journalctl -u systemd-networkd
 
 ## Secure WLAN
 
-My private WLAN has WPA security enabled so NUC needs to know the password. ALso systemd-networkd requires `wpa-supplicant` service for WPA security, see https://wiki.archlinux.org/title/wpa_supplicant.
+My private WLAN has WPA security enabled so NUC needs to know the password. Also systemd-networkd requires `wpa-supplicant` service for WPA security, see https://wiki.archlinux.org/title/wpa_supplicant.
 
 Enter WLAN password and start wpa_supplicant service.
 ```
@@ -432,6 +434,46 @@ root@intel-corei7-64:~# systemctl status wpa_supplicant@wlp58s0
 root@intel-corei7-64:~# ip a
 root@intel-corei7-64:~# systemctl enable wpa_supplicant@wlp58s0
 ```
+
+## Wake on LAN
+
+I usually work on Ubuntu use Webbox to play music and thought that it'd be great to wakeup Webbox directly from Ubuntu. If Webbox was suspended while playing music it should continue playing right there when waken up.
+
+Use `ethtool` to enable Wake on LAN on Webbox, so need to add `CORE_IMAGE_EXTRA_INSTALL += "ethtool"` e.g. in `local.conf`. Then start Webbox and enable WoL.
+```
+root@intel-corei7-64:~# ethtool -s eno1 wol g
+root@intel-corei7-64:~# ethtool eno1 |grep -i wake
+        Supports Wake-on: pumbg
+        Wake-on: g
+root@intel-corei7-64:~# ip a # get ETH-MAC and ETH-IP for the next step
+```
+
+NUC ethernet seems to support WakeOnLAN so let's try it by installing `wakeonlan` package on Ubuntu and try to wake Webbox.
+```
+~ sudo apt install wakeonlan
+~ for i in {1..60}; do
+~	sleep 0.5;
+~	wakeonlan <ETH-MAC>;
+~	ping -c 1 <ETH-IP> -W 1 && break
+~ done
+```
+
+## Wake on WLAN
+
+If you use WLAN instead of LAN, here is how to enable Wake on WLAN.
+
+Core image already have `iw` installed on Webbox, so enable WoWLAN and suspend (while script just to see alive over SSH).
+```
+root@intel-corei7-64:~# iw phy0 wowlan enable magic-packet
+root@intel-corei7-64:~# iw phy0 wowlan show
+WoWLAN is enabled:
+ * wake up on magic packet
+root@intel-corei7-64:~# systemctl suspend; i=1; while printf '%d' "$((i++))"; sleep 1; do printf ','; done; printf '\n'
+```
+
+To wakeup use `wakeonlan` as in "Wake on LAN" but use WLAN interface's IP and EMAC addresses.
+
+> Use `iw list |grep -i wake` to see what wake modes your WLAN supports. Also when experimenting my Webbox WLAN got rarely stuck so could add `ip link set down br0 && ip link set up br0 && systemctl restart systemd-networkd` at wakeup.
 
 ## Webbox distro
 
