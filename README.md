@@ -435,7 +435,12 @@ root@intel-corei7-64:~# ip a
 root@intel-corei7-64:~# systemctl enable wpa_supplicant@wlp58s0
 ```
 
-## Wake on LAN
+## Suspend and wake
+
+Webbox should be suspended when not used to save power. You can suspend Webbow over SSH.
+```
+root@intel-corei7-64:~# systemctl suspend
+```
 
 I usually work on Ubuntu use Webbox to play music and thought that it'd be great to wakeup Webbox directly from Ubuntu. If Webbox was suspended while playing music it should continue playing right there when waken up.
 
@@ -446,9 +451,10 @@ root@intel-corei7-64:~# ethtool eno1 |grep -i wake
         Supports Wake-on: pumbg
         Wake-on: g
 root@intel-corei7-64:~# ip a # get ETH-MAC and ETH-IP for the next step
+root@intel-corei7-64:~# systemctl suspend
 ```
 
-NUC ethernet seems to support WakeOnLAN so let's try it by installing `wakeonlan` package on Ubuntu and try to wake Webbox.
+As shown above, my NUC seems to support WakeOnLAN so install `wakeonlan` package on Ubuntu and try to wake Webbox.
 ```
 ~ sudo apt install wakeonlan
 ~ for i in {1..60}; do
@@ -457,6 +463,8 @@ NUC ethernet seems to support WakeOnLAN so let's try it by installing `wakeonlan
 ~	ping -c 1 <ETH-IP> -W 1 && break
 ~ done
 ```
+
+Webbox should wakeup in a few seconds from suspend.
 
 ## Wake on WLAN
 
