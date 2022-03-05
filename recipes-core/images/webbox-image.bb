@@ -17,3 +17,6 @@ CORE_IMAGE_EXTRA_INSTALL += "pulseaudio pulseaudio-server"
 
 # ethtool, for WakeOnLAN etc.
 CORE_IMAGE_EXTRA_INSTALL += "ethtool"
+
+# vlc video/music player
+CORE_IMAGE_EXTRA_INSTALL += "vlc"

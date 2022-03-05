@@ -38,7 +38,7 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Webbox distro](#webbox-distro)
 - [Enable WLAN](#enable-wlan)
 - [Secure WLAN](#secure-wlan)
-- [Wake on LAN](#wake-on-lan)
+- [Sleep and wake](#sleep-and-wake)
 - [Wake on WLAN](#wake-on-wlan)
 - [Start application](#start-application)
 
@@ -435,16 +435,16 @@ root@intel-corei7-64:~# ip a
 root@intel-corei7-64:~# systemctl enable wpa_supplicant@wlp58s0
 ```
 
-## Suspend and wake
+## Sleep and wake
 
-Webbox should be suspended when not used to save power. You can suspend Webbow over SSH.
+Webbox should sleep to save power when not in use. You can sleep/suspend Webbow in terminal or over SSH.
 ```
 root@intel-corei7-64:~# systemctl suspend
 ```
 
 I usually work on Ubuntu use Webbox to play music and thought that it'd be great to wakeup Webbox directly from Ubuntu. If Webbox was suspended while playing music it should continue playing right there when waken up.
 
-Use `ethtool` to enable Wake on LAN on Webbox, so need to add `CORE_IMAGE_EXTRA_INSTALL += "ethtool"` e.g. in `local.conf`. Then start Webbox and enable WoL.
+Use `ethtool` to enable Wake on LAN on Webbox, so need to add `CORE_IMAGE_EXTRA_INSTALL += "ethtool"` e.g. in `local.conf`. Then start Webbox, enable WoL and put Webbox in light-sleep with `suspend` command.
 ```
 root@intel-corei7-64:~# ethtool -s eno1 wol g
 root@intel-corei7-64:~# ethtool eno1 |grep -i wake
@@ -454,7 +454,7 @@ root@intel-corei7-64:~# ip a # get ETH-MAC and ETH-IP for the next step
 root@intel-corei7-64:~# systemctl suspend
 ```
 
-As shown above, my NUC seems to support WakeOnLAN so install `wakeonlan` package on Ubuntu and try to wake Webbox.
+As shown above, my NUC seems to support WakeOnLAN so install `wakeonlan` package on Ubuntu, and try to wake Webbox.
 ```
 ~ sudo apt install wakeonlan
 ~ for i in {1..60}; do
@@ -482,6 +482,21 @@ root@intel-corei7-64:~# systemctl suspend; i=1; while printf '%d' "$((i++))"; sl
 To wakeup use `wakeonlan` as in "Wake on LAN" but use WLAN interface's IP and EMAC addresses.
 
 > Use `iw list |grep -i wake` to see what wake modes your WLAN supports. Also when experimenting my Webbox WLAN got rarely stuck so could add `ip link set down br0 && ip link set up br0 && systemctl restart systemd-networkd` at wakeup.
+
+## Video and audio player
+
+Browser can be used to play video but a dedicated player gives better control. VLC has been my favorite since 90s.
+
+Add multimedia layer `bitbake-layers add-layer ../meta-openembedded/meta-multimedia/` in build and VLC in the image `build/conf/local.conf`.
+```
+CORE_IMAGE_EXTRA_INSTALL += "vlc"
+LICENSE_FLAGS_WHITELIST = "commercial" # see https://docs.yoctoproject.org/singleindex.html
+```
+
+To use VLC on terminal open `nvlc`, see https://wiki.videolan.org/Documentation:Modules/ncurses/ for shortcut commands.
+```
+intel-corei7-64:/home/weston$ nvlc <url-file-or-folder>
+```
 
 ## Webbox distro
 
