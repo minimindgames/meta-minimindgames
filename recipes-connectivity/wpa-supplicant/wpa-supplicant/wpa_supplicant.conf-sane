@@ -1,0 +1,5 @@
+network={
+        ssid="T5"
+        psk="360370198"
+        # psk=3811838279d3464a1bade302277fe247d19d365eb2ff70734e4956b6ae7ba550
+}
