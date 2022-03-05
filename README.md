@@ -41,6 +41,7 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Secure WLAN](#secure-wlan)
 - [Sleep and wake](#sleep-and-wake)
 - [Wake on WLAN](#wake-on-wlan)
+- [Remote desktop protocol](#remote-desktop-protocol)
 - [Video and audio player](#video-and-audio-player)
 - [Firewall](#firewall)
 
@@ -484,6 +485,45 @@ root@intel-corei7-64:~# systemctl suspend; i=1; while printf '%d' "$((i++))"; sl
 To wakeup use `wakeonlan` as in "Wake on LAN" but use WLAN interface's IP and EMAC addresses.
 
 > Use `iw list |grep -i wake` to see what wake modes your WLAN supports. Also when experimenting my Webbox WLAN got rarely stuck so could add `ip link set down br0 && ip link set up br0 && systemctl restart systemd-networkd` at wakeup.
+
+## Remote desktop protocol
+
+Weston supports RDP, but unfortunately it (and also VNC) seems to require xorg. That's kind of too much dependencies because I just want some remote control for music player.
+
+If you still want RDP, here is how you get it in image, but you still need to enable xorg.
+
+RDP is a remote desktop standard which Weston and open-embedded already seem to support, as you can find lots of recipes `~/poky/meta-openembedded$ find -name *rdp* `. The server package is `xrdp` and that is what we want.
+
+Add `xdrp` in the image and see rdp (and xorg) is found in weston's packageconfig.
+```
+~poky/build$ bitbake xrdp
+~poky/build$ bitbake -e weston | grep ^PACKAGECONFIG
+```
+
+It's there but it's not a simple executable so let's try if devtool could upload xrdp and weston instead of using scp (or the whole image with dd), see https://docs.yoctoproject.org/ref-manual/devtool-reference.html
+```
+~poky/build$ bitbake xrdp -e |grep ^WORKDIR=
+~poky/build$ devtool modify xrdp
+~poky/build$ devtool build xrdp
+~poky/build$ devtool deploy-target xrdp root@<webbox-ip-address> # run `ip a` on webbox for IP, such as 192.168.x.y
+# upload weston too
+```
+
+Login to Webbox and modify some to get it running.
+```
+$ ssh root@<ip-address>
+$ touch /etc/xrdp/rsakeys.ini
+$ vi /etc/xrdp/xrdp.ini
+	crypt_level=none
+```
+
+Then quit weston and restart with RDP. I'm guessing it should work now but I haven't tested it.
+```
+$ mkdir /run/user/0 && chmod 700 /run/user/0 && export XDG_RUNTIME_DIR=/run/user/0
+$ weston --backend=rdp-backend.so --width=1024 --height=768 --socket=wayland-1
+$ weston --backend=rdp-backend.so --width=1024 --height=768 --socket=wayland-1 --rdp4-key=/home/root/key.pem 
+$ systemctl restart xrdp
+```
 
 ## Video and audio player
 
