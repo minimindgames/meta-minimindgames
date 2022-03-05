@@ -20,3 +20,6 @@ CORE_IMAGE_EXTRA_INSTALL += "ethtool"
 
 # vlc video/music player
 CORE_IMAGE_EXTRA_INSTALL += "vlc"
+
+# systemd-firewalld
+CORE_IMAGE_EXTRA_INSTALL += "firewalld"

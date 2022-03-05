@@ -31,6 +31,7 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Test on Intel NUC](#test-on-intel-nuc)
 - [Test on Raspberrypi](#test-on-raspberrypi)
 - [Chromium browser](#chromium-browser)
+- [Startup application](#startup-application)
 - [Make it yours](#make-it-yours)
 - [Gamepad controller](#gamepad-controller)
 - [Audio support](#audio-support)
@@ -40,7 +41,8 @@ This page explains in details the changes made from Yocto/Poky baseline, to buil
 - [Secure WLAN](#secure-wlan)
 - [Sleep and wake](#sleep-and-wake)
 - [Wake on WLAN](#wake-on-wlan)
-- [Start application](#start-application)
+- [Video and audio player](#video-and-audio-player)
+- [Firewall](#firewall)
 
 ## Setup Yocto build
 
@@ -284,8 +286,8 @@ The Raspberrypi image already has gamepad supported, but it's a kernel module so
 
 NUC's intel-kernel is not preconfigured with gamepad support, so let's enable it. For details, see Yocto's how to config kernel https://www.yoctoproject.org/docs/latest/kernel-dev/kernel-dev.html#configuring-the-kernel
 ```
-~/poky/build$ bitbake linux-intel -c kernel_configme -f
-~/poky/build$ bitbake linux-intel -c menuconfig
+~/poky/build$ bitbake virtual/kernel -c kernel_configme -f
+~/poky/build$ bitbake virtual/kernel -c menuconfig
 # press '/' to search for "joystic" => and we should find it at "drivers/input/joystic/xpad"
 # Set <*> in Joystic interface (Raspberrypi had <M> for module so could fix that to <*> as well)
 # Save and exit
@@ -493,9 +495,42 @@ CORE_IMAGE_EXTRA_INSTALL += "vlc"
 LICENSE_FLAGS_WHITELIST = "commercial" # see https://docs.yoctoproject.org/singleindex.html
 ```
 
-To use VLC on terminal open `nvlc`, see https://wiki.videolan.org/Documentation:Modules/ncurses/ for shortcut commands.
+To use VLC on terminal open `nvlc`, see https://wiki.videolan.org/Documentation:Alternative_Interfaces/ and https://wiki.videolan.org/Documentation:Modules/ncurses/ for shortcut commands.
 ```
 intel-corei7-64:/home/weston$ nvlc <url-file-or-folder>
+```
+
+Here is a list of some nice music streams to get started building your favorite playlists https://wiki.secondlife.com/wiki/Music_streams
+
+## Firewall
+
+My Webbox resides within LAN and I have a router between LAN and Internet. If you connect Webbox to Internet without router or enable "virtual server" on the router to enable external SSH access, you must have a firewall to block unwanted incoming traffic.
+
+For systemd we can use `firewalld` to configure what traffic is allowed so add it in the image.
+```
+CORE_IMAGE_EXTRA_INSTALL += "firewalld"
+```
+
+Firewalld is a userland app so it needs some kernel support, see https://firewalld.org/documentation/concepts.html. Check that Netfilter is enabled. Nftables is the future but Iptables is good enough for my needs so I'll use it because it's enabled by default and firewalld supports the both.
+```
+~/poky/build$ bitbake virtual/kernel -e |grep ^B=
+# go to build dir printed and search what we have already in enabled for kernel
+~/poky/build$ grep NETFILTER .config
+~/poky/build$ grep IPTABLES .config
+~/poky/build$ grep NF_TABLES .config
+```
+
+The kernel has Iptables so change firewalld to use that instead of nftables.
+```
+root@intel-corei7-64:~# vi /etc/firewalld/firewalld.conf # FirewallBackend=iptables
+root@intel-corei7-64:~# systemctl restart firewalld
+root@intel-corei7-64:~# systemctl status firewalld
+```
+
+Firewall is now active and we can create the rules to block unwanted visitors, e.g.:
+```
+root@intel-corei7-64:~# firewall-cmd --list-all
+root@intel-corei7-64:~# firewall-cmd --permanent --add-source=192.168.0.0/24
 ```
 
 ## Webbox distro
