@@ -8,18 +8,29 @@ Webbox has Linux and builtin Chromium browser so it's good for both native appli
 
 ## Quick start
 
-In the picture is my webbox running on Intel NUC.
+In the picture is my webbox running on Intel NUC (and Raspberrypi).
 
 ![Webbox](img/webbox.jpg)
 
-Here is a prebuilt image for Intel NUC. See below how to get the image in your device.
-- Intel NUC image (550MB) https://minimindgames.com/webbox/webbox-image-intel-corei7-64.wic.bz2
-
-> You may need to update `date -s "2022..."` if your device has no time to handle https-pages.
-
 This page explains in details the changes made from Yocto/Poky baseline, to build it shortly:
 - [Setup Yocto build](#setup-yocto-build)
-- Add (relevant) projects below with `clone` and `bitbake-layers add-layer`
+- Add (relevant) projects below using `git clone` and `bitbake-layers add-layer` commands.
+- `~/poky/build/bblayers.conf` should look something like this for Intel NUC.
+```
+BBLAYERS ?= " \
+  /home/ari/poky/meta \
+  /home/ari/poky/meta-poky \
+  /home/ari/poky/meta-yocto-bsp \
+  /home/ari/poky/meta-intel \
+  /home/ari/poky/meta-clang \
+  /home/ari/poky/meta-webbox \
+  /home/ari/poky/meta-openembedded/meta-oe \
+  /home/ari/poky/meta-openembedded/meta-python \
+  /home/ari/poky/meta-openembedded/meta-multimedia \
+  /home/ari/poky/meta-openembedded/meta-networking \
+  /home/ari/poky/meta-browser/meta-chromium \
+  "
+```
 - Build [Webbox distro](#webbox-distro)
 
 ## Contents
@@ -113,11 +124,13 @@ Check that qapp is runnable (`nographic` is good to make it faster and on "putty
 
 > I tried before doing any of this and Ubuntu 20.04 image works fine on NUC, so my backup plan is to use Ubuntu, if this Yocto experiment will be a dead end.
 
-Download support for Intel
+Download support for Intel and add `honister` in `meta-intel/conf/layer.conf`.
 ```
 ~/poky$ git clone git://git.yoctoproject.org/meta-intel
 ~/poky/build$ bitbake-layers add-layer ../meta-intel
 ```
+
+> Patch `meta-intel/recipes-core/ovmf/ovmf_%.bbappend` failed to build so I simply removed it since no need for any secureboot stuff.
 
 Build for i7-machine. Actually, my NUC has i3 but I'm feeling lucky.
 ```
@@ -194,6 +207,8 @@ Download chromium (and clang for it) then add to our build.
 ~/poky/build$ git clone git@github.com:OSSystems/meta-browser.git
 ~/poky/build$ bitbake-layers add-layer ../meta-browser/meta-chromium
 ```
+
+> Add dependencies for `meta-openembedded` from Raspberrypi.
 
 Add chromium to `conf/local.conf`, obviously "wayland" version.
 ```
@@ -445,6 +460,8 @@ Webbox should sleep to save power when not in use. You can sleep/suspend Webbow 
 root@intel-corei7-64:~# systemctl suspend
 ```
 
+> To quit ssh on terminal after suspending, press '~' and '.'. Wanted to mention as that's not so intuitive.
+
 I usually work on Ubuntu use Webbox to play music and thought that it'd be great to wakeup Webbox directly from Ubuntu. If Webbox was suspended while playing music it should continue playing right there when waken up.
 
 Use `ethtool` to enable Wake on LAN on Webbox, so need to add `CORE_IMAGE_EXTRA_INSTALL += "ethtool"` e.g. in `local.conf`. Then start Webbox, enable WoL and put Webbox in light-sleep with `suspend` command.
@@ -575,22 +592,27 @@ root@intel-corei7-64:~# firewall-cmd --permanent --add-source=192.168.0.0/24
 
 ## Webbox distro
 
-Finally, it's kind of dirty to modify `local.conf` extensively. This project has distro and image containing changes made so far.
+Finally, it's kind of dirty to modify `local.conf` extensively. This project has configuration files containing the changes needed, so you can use them to build Webbox image.
 ```
 ~/poky/build$ git clone git@github.com:minimindgames/meta-webbox.git ../meta-webbox/
 ~/poky/build$ bitbake-layers add-layer ../meta-webbox
 ~/poky/build$ DISTRO=webbox MACHINE=intel-corei7-64 bitbake webbox-image
 ```
 
-Now, we should have something like `tmp/deploy/images/intel-corei7-64/webbox-image-intel-corei7-64.wic` which we can flash on NUC.
+Now, you should have something like `tmp/deploy/images/intel-corei7-64/webbox-image-intel-corei7-64.wic` to flash on NUC.
 
 ## Conclusion
 
 We have now a Linux based webbox with Chromium browser.
 
-Let's find and play some great HTML5 games, e.g. at https://itch.io/games/platform-web and see also my games at https://minimindgames.com/webbox/.
+Webbox is great for streaming at https://www.youtube.com/, playing your favorite music and also for HTML5 games e.g. at https://itch.io/games/platform-web.
+
+Enjoy your home brewed Webbox!
 
 ## Tips and tricks
+
+Webbox device tips:
+- Update `date -s "2022..."` if your device has no time to handle https-pages, e.g. in Chromium
 
 Yocto tips:
 - GEMU is very slow - patience is a virtue
