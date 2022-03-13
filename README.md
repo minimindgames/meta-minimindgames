@@ -613,7 +613,7 @@ Here is a list of some nice music streams to get started building your favorite 
 
 VLC has a bunch of interfaces, see https://wiki.videolan.org/Interfaces/
 ```
-$ vlc -I oldrc
+weston@intel-corei7-64:~$ vlc -I rc
 [cli] lua interface error: Error loading script /usr/lib/vlc/lua/intf/cli.luac: ../../vlc-3.0.12/share/lua/modules/common.lua:3: attempt to call a nil value (global 'module')`
 ```
 
@@ -623,12 +623,12 @@ Type `help`, `play`, `stop`, etc. to see that you can control VLC from terminal.
 
 Next try to control VLC programmatically over a unix-socket by opening VLC with `rc-unix` parameter. VLC is clever with playlist format so it can be a folder where you keep your music or for example an URL "http://66.225.205.8:8030/" to start streaming immediately.
 ```
-cvlc -I oldrc --rc-unix=vlc.sock <playlist>
+weston@intel-corei7-64:~$ cvlc -I oldrc --rc-unix=vlc.sock <playlist>
 ```
 
 Open another terminal on Webbox and start `python3`.
 ```
->>> import socket as sock; sock = s.socket(s.AF_UNIX); sock.connect('/home/weston/sock')
+>>>  import socket; sock = socket.socket(socket.AF_UNIX); sock.connect('/home/weston/vlc.sock')
 >>> sock.send("\nstop\n".encode())
 >>> sock.send("\nplay\n".encode())
 ```
