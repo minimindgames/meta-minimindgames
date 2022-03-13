@@ -54,6 +54,7 @@ BBLAYERS ?= " \
 - [Wake on WLAN](#wake-on-wlan)
 - [Remote desktop protocol](#remote-desktop-protocol)
 - [Application development](#application-development)
+- [Webbox Manager](#webbox-manager)
 - [Video and audio player](#video-and-audio-player)
 - [VLC remote interface](vlc-remote-interface)
 - [Firewall](#firewall)
@@ -558,7 +559,7 @@ Python is available if you added layer `meta-openembedded/meta-python`.
 python3 -c 'print("Hello world!")'
 ```
 
-For native languages you need to install a compiler on Webbox image, or use a cross-compiler on your host computer like this.
+For native languages you need to install a compiler on Webbox image, or use a cross-compiler on your host computer like this, see https://www.yoctoproject.org/docs/latest/sdk-manual/sdk-manual.html
 ```
 ~/poky/build$ MACHINE=intel-corei7-64 bitbake webbox-image -c populate_sdk 
 ~/poky/build$ tmp/deploy/sdk/poky-glibc-x86_64-webbox-image-corei7-64-intel-corei7-64-toolchain-3.4.1.sh
@@ -591,6 +592,60 @@ EOF
 ```
 
 Yocto cross-compiling demystified, but Hello world is still magical.
+
+## Webbox Manager
+
+Webbox Manager provides Webbox user interfaces to handle request from a user.
+
+You can find my code in `meta-webbox` layer and it's good to start your customization.
+```
+devtool modify webbox-manager
+```
+
+However, if you want to build your own manager from scratch, see https://www.yoctoproject.org/docs/current/mega-manual/mega-manual.html#new-recipe-testing-examples
+
+Here is an example for CMake to keep you on a good road.
+
+Create source files `nano main.c`.
+```
+#include <stdio.h>
+
+int main() {
+   printf("Webbox Manager!\n");
+   return 0;
+}
+```
+
+Create cmake file `nano CMakeLists.txt`.
+```
+project(WebboxManager)
+cmake_minimum_required(VERSION 3.0)
+
+add_executable(WebboxManager main.c)
+```
+
+Generate cmake, build sources and run WebboxManager program on host to see all should be good.
+```
+cd build
+cmake ..
+make
+./WebboxManager
+```
+
+Create a new Yocto recipe for WebboxManager, see https://www.yoctoproject.org/docs/latest/sdk-manual/sdk-manual.html, and modify `workspace/recipes/webbox-manager/webbox-manager.bb` with SRCs and something to install.
+```
+devtool add webbox-manager ~/webbox-manager/
+```
+
+To build the code for Webbox after `devtool modify` or `devtool add`.
+```
+devtool build webbox-manager
+devtool deploy-target webbox-manager root@192.168.0.164
+```
+
+Open terminal on Webbox and find whereever you got it installed `which WebboxManager`.
+
+Final step would be to add the package in `IMAGE_INSTALL += "webbox-manager "`.
 
 ## Video and audio player
 
