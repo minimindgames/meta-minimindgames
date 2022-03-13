@@ -53,7 +53,9 @@ BBLAYERS ?= " \
 - [Sleep and wake](#sleep-and-wake)
 - [Wake on WLAN](#wake-on-wlan)
 - [Remote desktop protocol](#remote-desktop-protocol)
+- [Application development](#application-development)
 - [Video and audio player](#video-and-audio-player)
+- [VLC remote interface](vlc-remote-interface)
 - [Firewall](#firewall)
 
 ## Setup Yocto build
@@ -542,6 +544,54 @@ $ weston --backend=rdp-backend.so --width=1024 --height=768 --socket=wayland-1 -
 $ systemctl restart xrdp
 ```
 
+## Application development
+
+Webbox functionality is easy to extend with both script and native programs.
+
+Linux shell scripts are the most obvious way to code.
+```
+~$ echo 'Hello world!'
+```
+
+Python is available if you added layer `meta-openembedded/meta-python`.
+```
+python3 -c 'print("Hello world!")'
+```
+
+For native languages you need to install a compiler on Webbox image, or use a cross-compiler on your host computer like this.
+```
+~/poky/build$ MACHINE=intel-corei7-64 bitbake webbox-image -c populate_sdk 
+~/poky/build$ tmp/deploy/sdk/poky-glibc-x86_64-webbox-image-corei7-64-intel-corei7-64-toolchain-3.4.1.sh
+```
+
+After SDK is "populated", you can source cross-compilers toolchain to get environment variables initialized, e.g.
+```
+~$ source /opt/poky/3.4.1/environment-setup-corei7-64-poky-linux
+```
+
+Create a hello program, CC it, use `file` to see it's compiled for correct machine, then upload to Webbox where you can run it.
+```
+~$ cat << EOF > hello.c
+#include <stdio.h>
+int main() {
+   printf("Hello world!\n");
+   return 0;
+}
+EOF
+
+# compile for host
+~$ gcc hello.c -o hello
+~$ file hello
+~$ ./hello
+
+# cross-compile for Webbox
+~$ $CC hello.c -o hello
+~$ file hello
+~$ scp hello root@192.168.0.164:
+```
+
+Yocto cross-compiling demystified, but Hello world is still magical.
+
 ## Video and audio player
 
 Browser can be used to play video but a dedicated player gives better control. VLC has been my favorite since 90s.
@@ -558,6 +608,32 @@ intel-corei7-64:/home/weston$ nvlc <url-file-or-folder>
 ```
 
 Here is a list of some nice music streams to get started building your favorite playlists https://wiki.secondlife.com/wiki/Music_streams
+
+## VLC remote interface
+
+VLC has a bunch of interfaces, see https://wiki.videolan.org/Interfaces/
+```
+$ vlc -I oldrc
+[cli] lua interface error: Error loading script /usr/lib/vlc/lua/intf/cli.luac: ../../vlc-3.0.12/share/lua/modules/common.lua:3: attempt to call a nil value (global 'module')`
+```
+
+Type `help`, `play`, `stop`, etc. to see that you can control VLC from terminal.
+
+> VLC is quite picky about LUA versions, https://wiki.videolan.org/Contrib_Status so should downgrade LUA to 5.2. Find the recipe at https://git.congatec.com/yocto/meta-openembedded/-/commit/d2ec4eef07c977e2b30142b4e141436fea295eb1#960a7301583d1cbedb6f01cdc37d353885cb3228 and add `PREFERRED_VERSION_lua = "5.2%"` in `local.conf`.
+
+Next try to control VLC programmatically over a unix-socket by opening VLC with `rc-unix` parameter. VLC is clever with playlist format so it can be a folder where you keep your music or for example an URL "http://66.225.205.8:8030/" to start streaming immediately.
+```
+cvlc -I oldrc --rc-unix=vlc.sock <playlist>
+```
+
+Open another terminal on Webbox and start `python3`.
+```
+>>> import socket as sock; sock = s.socket(s.AF_UNIX); sock.connect('/home/weston/sock')
+>>> sock.send("\nstop\n".encode())
+>>> sock.send("\nplay\n".encode())
+```
+
+It couldn't work any better and with unix-socket it's easy to integrate with whatsoever.
 
 ## Firewall
 
@@ -616,7 +692,7 @@ Webbox device tips:
 
 Yocto tips:
 - GEMU is very slow - patience is a virtue
-- Monitor you disk space with `df` to not run out of disk space (200GB is good for one MACHINE with chromium)
+- Monitor you disk space with `df` to not run out of disk space (200GB is barely enough for one MACHINE)
 - Building image on my P710 (with 56 cores) takes a bit less than an hour from scratch
 
 Linux tips:
