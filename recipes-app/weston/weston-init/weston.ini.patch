@@ -1,10 +1,10 @@
 --- a/weston.ini	2022-01-25 10:47:24.037925532 +0200
-+++ b/weston.ini	2022-02-09 15:29:41.954651605 +0200
++++ b/weston.ini	2022-03-12 15:12:20.850859274 +0200
 @@ -5,14 +5,15 @@
  #shell=desktop-shell.so
  #gbm-format=xrgb2101010
  require-input=false
-+idle-time=600
++idle-time=0
  
 -#[shell]
 +[shell]
@@ -27,7 +27,7 @@
 +path=/usr/bin/chromium --start-maximized
 +
 +[launcher]
-+icon=/usr/share/icons/gnome/24x24/apps/utilities-terminal.png
++icon=/usr/share/icons/Adwaita/24x24/apps/utilities-terminal-symbolic.symbolic.png
 +path=/usr/bin/weston-terminal
 +
  #[launcher]
