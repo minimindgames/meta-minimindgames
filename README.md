@@ -637,15 +637,17 @@ Create a new Yocto recipe for WebboxManager, see https://www.yoctoproject.org/do
 devtool add webbox-manager ~/webbox-manager/
 ```
 
+Once you have the right stuff at `workspace/sources/webbox-manager/` either by `devtool modify` or creating the project from scratch, you can test it easy on both host `build` folder and on Webbox with `deploy-target`. I bet embedded development has never been easier.
+
 To build the code for Webbox after `devtool modify` or `devtool add`.
 ```
 devtool build webbox-manager
 devtool deploy-target webbox-manager root@192.168.0.164
 ```
 
-Open terminal on Webbox and find whereever you got it installed `which WebboxManager`.
+Open terminal on Webbox and find wherever you got it installed `which WebboxManager` and try to run it.
 
-Final step would be to add the package in `IMAGE_INSTALL += "webbox-manager "`.
+If you started from scratch, final step would be to add the package in `IMAGE_INSTALL += "webbox-manager"`.
 
 ## Video and audio player
 
