@@ -1,10 +1,6 @@
-# Build a lightweight webbox on Intel NUC and Raspberrypi
+# Webbox - DIY project for web browsing, streaming and gaming
 
-This project is about building a lightweight "webbox", which you can use for simple start of your own Internet appliance.
-
-Webbox is based on Yocto/Linux so it's completely customisable and runs on any compatible hardware, such as Intel NUC and Raspberrypi.
-
-Webbox has Linux and builtin Chromium browser so it's good for both native application and web (such as HTML5 games) development.
+Webbox is a do-it-yourself project to build a lightweight and fully customisable Internet appliance for web browsing, streaming and gaming on Yocto/Linux compatible devices, such as Intel NUC and Raspberrypi.
 
 ## Quick start
 
@@ -53,10 +49,11 @@ BBLAYERS ?= " \
 - [Sleep and wake](#sleep-and-wake)
 - [Wake on WLAN](#wake-on-wlan)
 - [Remote desktop protocol](#remote-desktop-protocol)
-- [Application development](#application-development)
-- [Webbox Manager](#webbox-manager)
 - [Video and audio player](#video-and-audio-player)
 - [VLC remote interface](vlc-remote-interface)
+- [Application development](#application-development)
+- [Webbox Manager](#webbox-manager)
+- [HTTP server](#http-server)
 - [Firewall](#firewall)
 
 ## Setup Yocto build
@@ -545,6 +542,51 @@ $ weston --backend=rdp-backend.so --width=1024 --height=768 --socket=wayland-1 -
 $ systemctl restart xrdp
 ```
 
+## Video and audio player
+
+Browser can be used to play video but a dedicated player gives better control. VLC has been my favorite player since 90s.
+
+Add  VLC in the image `build/conf/local.conf`, and accept the licences appropriate for your use (probably not all commercial ones like here).
+```
+CORE_IMAGE_EXTRA_INSTALL += "vlc"
+LICENSE_FLAGS_WHITELIST = "commercial" # see https://docs.yoctoproject.org/singleindex.html
+```
+
+> You need also multimedia layer `bitbake-layers add-layer ../meta-openembedded/meta-multimedia/`.
+
+To use VLC on terminal open `nvlc`, see https://wiki.videolan.org/Documentation:Alternative_Interfaces/ and https://wiki.videolan.org/Documentation:Modules/ncurses/ for shortcut commands.
+```
+intel-corei7-64:/home/weston$ nvlc <url-file-or-folder>
+```
+
+Here is a list of some nice music streams to get started building your favorite playlists https://wiki.secondlife.com/wiki/Music_streams
+
+## VLC remote interface
+
+VLC has a bunch of interfaces, see https://wiki.videolan.org/Interfaces/
+```
+weston@intel-corei7-64:~$ vlc -I rc
+[cli] lua interface error: Error loading script /usr/lib/vlc/lua/intf/cli.luac: ../../vlc-3.0.12/share/lua/modules/common.lua:3: attempt to call a nil value (global 'module')`
+```
+
+Type `help`, `play`, `stop`, etc. to see that you can control VLC from terminal.
+
+> VLC is quite picky about LUA versions, https://wiki.videolan.org/Contrib_Status so should downgrade LUA to 5.2. Find the recipe at https://git.congatec.com/yocto/meta-openembedded/-/commit/d2ec4eef07c977e2b30142b4e141436fea295eb1#960a7301583d1cbedb6f01cdc37d353885cb3228 and add `PREFERRED_VERSION_lua = "5.2%"` in `local.conf`.
+
+Next try to control VLC programmatically over a unix-socket by opening VLC with `rc-unix` parameter. VLC is clever with playlist format so it can be a folder where you keep your music or for example an URL "http://66.225.205.8:8030/" to start streaming immediately.
+```
+weston@intel-corei7-64:~$ cvlc -I oldrc --rc-unix=vlc.sock <playlist>
+```
+
+Open another terminal on Webbox and start `python3`.
+```
+>>>  import socket; sock = socket.socket(socket.AF_UNIX); sock.connect('/home/weston/vlc.sock')
+>>> sock.send("\nstop\n".encode())
+>>> sock.send("\nplay\n".encode())
+```
+
+It couldn't work any better and with unix-socket it's easy to integrate with whatsoever.
+
 ## Application development
 
 Webbox functionality is easy to extend with both script and native programs.
@@ -593,18 +635,15 @@ EOF
 
 Yocto cross-compiling demystified, but Hello world is still magical.
 
+> Python was already working for VLC remote control so you might ask why not continue with Python. I might be wrong (obviously), but the next excercises will require some kernel bindings and a generic C sounds better choice than trying to find kernel bindings for a specific Python version.
+
 ## Webbox Manager
 
 Webbox Manager provides Webbox user interfaces to handle request from a user.
 
-You can find my code in `meta-webbox` layer and it's good to start your customization.
-```
-devtool modify webbox-manager
-```
+If you want to build your own manager from scratch, see https://www.yoctoproject.org/docs/current/mega-manual/mega-manual.html#new-recipe-testing-examples
 
-However, if you want to build your own manager from scratch, see https://www.yoctoproject.org/docs/current/mega-manual/mega-manual.html#new-recipe-testing-examples
-
-Here is an example for CMake to keep you on a good road.
+Yocto mega-manual is missing `cmake` based build which actually should be the default, so here is an example for CMake to keep you on a good road.
 
 Create source files `nano main.c`.
 ```
@@ -632,65 +671,39 @@ make
 ./WebboxManager
 ```
 
-Create a new Yocto recipe for WebboxManager, see https://www.yoctoproject.org/docs/latest/sdk-manual/sdk-manual.html, and modify `workspace/recipes/webbox-manager/webbox-manager.bb` with SRCs and something to install.
+Then create a new Yocto recipe for WebboxManager, see https://www.yoctoproject.org/docs/latest/sdk-manual/sdk-manual.html, and modify `workspace/recipes/webbox-manager/webbox-manager.bb` with SRCs and/or something to install in the image.
+
+My WebboxManager is included in this `meta-webbox` layer. It's easy to customize with Yocto's `devtool` utility.
 ```
-devtool add webbox-manager ~/webbox-manager/
+~/poky/build$ devtool modify webbox-manager
+# if you started from scratch: devtool add webbox-manager ~/webbox-manager/
 ```
 
-Once you have the right stuff at `workspace/sources/webbox-manager/` either by `devtool modify` or creating the project from scratch, you can test it easy on both host `build` folder and on Webbox with `deploy-target`. I bet embedded development has never been easier.
-
-To build the code for Webbox after `devtool modify` or `devtool add`.
+You get the stuff in `workspace/sources/webbox-manager/`, which is easy to `cmake` for host as explained above, or to `devtool build` and `deploy-target` to Webbox.
 ```
 devtool build webbox-manager
 devtool deploy-target webbox-manager root@192.168.0.164
 ```
 
-Open terminal on Webbox and find wherever you got it installed `which WebboxManager` and try to run it.
+If you started from scratch, final step would be to add the package in the image `IMAGE_INSTALL += "webbox-manager"`.
 
-If you started from scratch, final step would be to add the package in `IMAGE_INSTALL += "webbox-manager"`.
+I bet embedded development has never been easier. Open terminal on Webbox and find `which WebboxManager` to run it. I bet embedded development has never been easier.
 
-## Video and audio player
+## HTTP server
 
-Browser can be used to play video but a dedicated player gives better control. VLC has been my favorite since 90s.
+I want to control Webbox remotely from my mobile phone (and desktop) using a web browser, which means that I need some sort of web server running Webbox.
 
-Add multimedia layer `bitbake-layers add-layer ../meta-openembedded/meta-multimedia/` in build and VLC in the image `build/conf/local.conf`.
+First you obviously want to check that you can connect Webbox from your remote machine. Yocto meta-openembedded/meta-webserver seems to have a bunch of HTTP servers to pick from at https://layers.openembedded.org/layerindex/branch/master/layer/meta-webserver/
+
+If you have added python meta-layer, you can test connectivity with python's builtin webserver. Simply start a server and connect to Webbox with a browser using any device.
 ```
-CORE_IMAGE_EXTRA_INSTALL += "vlc"
-LICENSE_FLAGS_WHITELIST = "commercial" # see https://docs.yoctoproject.org/singleindex.html
-```
-
-To use VLC on terminal open `nvlc`, see https://wiki.videolan.org/Documentation:Alternative_Interfaces/ and https://wiki.videolan.org/Documentation:Modules/ncurses/ for shortcut commands.
-```
-intel-corei7-64:/home/weston$ nvlc <url-file-or-folder>
+ip a # IP address to connect, or "localhost" if using browser on Webbox, of course
+python3 -m http.server
 ```
 
-Here is a list of some nice music streams to get started building your favorite playlists https://wiki.secondlife.com/wiki/Music_streams
+I'm planning to use HTTP just to send commands to Webbox, such as to start a music playlist, and an HTTP server with CGI support could indeed run server side scripts on HTTP requests.
 
-## VLC remote interface
-
-VLC has a bunch of interfaces, see https://wiki.videolan.org/Interfaces/
-```
-weston@intel-corei7-64:~$ vlc -I rc
-[cli] lua interface error: Error loading script /usr/lib/vlc/lua/intf/cli.luac: ../../vlc-3.0.12/share/lua/modules/common.lua:3: attempt to call a nil value (global 'module')`
-```
-
-Type `help`, `play`, `stop`, etc. to see that you can control VLC from terminal.
-
-> VLC is quite picky about LUA versions, https://wiki.videolan.org/Contrib_Status so should downgrade LUA to 5.2. Find the recipe at https://git.congatec.com/yocto/meta-openembedded/-/commit/d2ec4eef07c977e2b30142b4e141436fea295eb1#960a7301583d1cbedb6f01cdc37d353885cb3228 and add `PREFERRED_VERSION_lua = "5.2%"` in `local.conf`.
-
-Next try to control VLC programmatically over a unix-socket by opening VLC with `rc-unix` parameter. VLC is clever with playlist format so it can be a folder where you keep your music or for example an URL "http://66.225.205.8:8030/" to start streaming immediately.
-```
-weston@intel-corei7-64:~$ cvlc -I oldrc --rc-unix=vlc.sock <playlist>
-```
-
-Open another terminal on Webbox and start `python3`.
-```
->>>  import socket; sock = socket.socket(socket.AF_UNIX); sock.connect('/home/weston/vlc.sock')
->>> sock.send("\nstop\n".encode())
->>> sock.send("\nplay\n".encode())
-```
-
-It couldn't work any better and with unix-socket it's easy to integrate with whatsoever.
+However, I want more like full control over Webbox instead of full features http server, so I'm build HTTP server from scratch. You can find HTTP server code in "webbox_http.c" to get started with your experiments. It's a very simple HTTP server code that listens for client connections, hosts Webbox HTML based UI and handles incoming HTTP request.
 
 ## Firewall
 
@@ -758,3 +771,6 @@ Linux tips:
 
 Bitbake tips:
 - https://elinux.org/Bitbake_Cheat_Sheet
+
+Windows tips:
+- Best Windows tip ever is to install Ubuntu with Windows Subsystem for Linux, on Windows command prompt `wsl --install`

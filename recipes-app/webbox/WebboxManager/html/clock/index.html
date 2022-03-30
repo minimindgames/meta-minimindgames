@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+        <style>
+            body {
+                background: white;
+            }
+
+            .clock {
+                /*position: absolute;
+                top: 20%;
+                left: 50%;
+                transform: translateX(-50%) translateY(-50%);*/
+                color: #000000;
+                font-size: 300px;
+                font-family: Orbitron;
+                letter-spacing: 7px;
+                text-align: center;
+            }
+            .alarm {
+                display: inline-block;
+                padding: 0.55em;
+                margin: 0.15em;
+                color: black;
+                border-style: solid;
+            }
+            .weather {
+                /*float: left;*/
+                display: inline-block;
+                margin: 0 100px;
+            }
+        </style>
+        <!----<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>-->
+    </head>
+    <body>
+
+        <script>
+            var body, alarms, prevH = -1;
+            var alarmNum1 = -1, alarmNumElem, alarmNumColor;
+            var profiles = {
+                color: ['white', '#ff0', '#0ff', '#f0f'],
+                timeStart: 0,
+                time: [6, 6, 6, 6]
+            };
+            var date;
+            function getColor() {
+                var h = date.getHours(); // 0 - 23
+                let time = profiles.timeStart;
+                for (let i = 0; i < profiles.time.length; i++) {
+                    time += profiles.time[i];
+                    if (h < time) {
+                        return profiles.color[i];
+                    }
+                    if (time >= 24) {
+                        time -= 24;
+                    }
+                }
+                return profiles.color[0];
+            }
+            //console.log(getColor())
+        </script>
+
+        <div style="display: block;" id="MyClockDisplay" class="clock" onload="showTime()"></div>
+
+        <canvas style="display: none; float: left;" id="canvas" width="600" height="600">
+        </canvas>
+
+        <div id="side" style="float:left; text-align: center; font-size: 150px;">
+            <!--<div id='weather-time' style="text-align: center; color: gray; font-size: 50px;"></div>-->
+            <div id="weather" style="text-align: center;">
+                <div class="weather" id="temp">-</div>
+                <div class="weather" id="wind">-</div>
+            </div>
+
+            <div id="alarms" style="text-align: center; font-size: 50px;">
+                <div id="alarmlabel" style="text-align: center; font-size: 25px; margin-top: 30px;">ALARM</div>
+                <div style="text-align: center;">
+                    <div class="alarm">1</div>
+                    <div class="alarm">2</div>
+                    <div class="alarm">3</div>
+                    <div class="alarm">4</div>
+                    <div class="alarm">5</div>
+                    <div class="alarm">6</div>
+                    <div class="alarm">7</div>
+                    <div class="alarm">8</div>
+                    <div class="alarm">9</div>
+                    <div class="alarm">0</div>
+                </div>
+            </div>
+            <div id="alarmActive" style="background-color: white; color: black; display: none; font-size: 150px; text-align: center;">
+            </div>
+        </div>
+
+        <script>
+            var alarmtime = 0;
+            var alarmtimeout = null;
+            function addAlarm(time) {
+                alarmtime = time * 60;
+                alarmtimeout = setTimeout(alarmTick, 0);
+                alarms.style.display = 'none';
+                alarmActive.innerHTML = '';
+                alarmActive.style.display = 'block';
+            }
+            function alarmTick() {
+                //console.log(alarmtimeout)
+                alarmtime--;
+                if (alarmtime <= 0) {
+                    //alarm();
+                    setTimeout(alarm, 0);
+                    return;
+                }
+
+                let m = parseInt(alarmtime / 60);
+                m = (m < 10) ? "0" + m : m;
+                let s = alarmtime % 60;
+                s = (s < 10) ? "0" + s : s;
+                alarmActive.innerHTML = m + ':' + s;
+                alarmtimeout = setTimeout(alarmTick, 1000);
+                //body.style.backgroundColor = 'red';
+            }
+            function alarm() {
+                beep();
+                alarmActive.innerHTML = 'HOPI HOPI';
+                alarmtimeout = setTimeout(alarm, 10 * 1000);
+                //alarms.style.display = 'block';
+                //alarmActive.style.display = 'none';
+                //body.style.backgroundColor = 'black';
+            }
+        </script>
+        <script>
+            function showTime() {
+                var h = date.getHours(); // 0 - 23
+                var m = date.getMinutes(); // 0 - 59
+                var s = date.getSeconds(); // 0 - 59
+                /*var session = "AM";
+                 
+                 if (h == 0) {
+                 h = 12;
+                 }
+                 
+                 if (h > 12) {
+                 h = h - 12;
+                 session = "PM";
+                 }*/
+
+                setBg(h);
+                if (h > 12) {
+                    h = h - 12;
+                    session = "PM";
+                }
+                h = (h < 10) ? "0" + h : h;
+                m = (m < 10) ? "0" + m : m;
+                s = (s < 10) ? "0" + s : s;
+
+                let e = document.getElementById("MyClockDisplay");
+                //let weather = document.getElementById("weather");
+                var time = h + ":" + m + ":" + s;
+
+                //let e = document.getElementById("MyClockDisplay");
+                //console.log(e.style)
+                e.innerText = time;
+                //e.textContent = time;
+            }
+
+            function setBg(h) {
+                if (h !== prevH) {
+                    prevH = h;
+                    let color = getColor();
+                    //console.log(as)
+                    if (color === 'white') {
+                        //e.style.color = 'black';
+                        //weather.style.color = 'black';
+                        body.style.color = 'black';
+                        document.getElementById("MyClockDisplay").style.color = 'black';
+                        body.style.backgroundColor = 'white';
+                        //alarms.style.display = 'none';
+                    } else {
+                        body.style.color = color;
+                        let e = document.getElementById("MyClockDisplay");
+                        e.style.color = color;
+                        //weather.style.color = color;
+                        body.style.backgroundColor = 'black';
+                        //alarms.style.display = 'block';
+                    }
+                    let arr = document.getElementsByClassName("alarm");
+                    for (let elem of arr) {
+                        elem.style.color = color;
+                        //elem.style.borderColor  = body.style.color;
+                        elem.style.backgroundColor = body.style.color;
+                    }
+                }
+            }
+        </script>
+
+
+        <script>
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
+            var radius = canvas.height / 2;
+            ctx.translate(radius, radius);
+            radius = radius * 0.9
+
+            function drawClock() {
+                drawFace(ctx, radius);
+                drawNumbers(ctx, radius);
+                drawTime(ctx, radius);
+            }
+
+
+            function drawFace(ctx, radius) {
+                var grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+                let color = getColor();
+                ctx.fillStyle = (color === 'white') ? 'black' : color;
+                ctx.fill();
+                grad = ctx.createRadialGradient(0, 0, radius * 0.95, 0, 0, radius * 1.05);
+                grad.addColorStop(0, '#333');
+                grad.addColorStop(0.5, (color === 'white') ? 'black' : color);
+                grad.addColorStop(1, '#333');
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = radius * 0.1;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, radius * 0.1, 0, 2 * Math.PI);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+            }
+
+
+            function drawNumbers(ctx, radius) {
+                var ang;
+                var num;
+                ctx.font = radius * 0.15 + "px arial";
+                ctx.textBaseline = "middle";
+                ctx.textAlign = "center";
+                for (num = 1; num < 13; num++) {
+                    ang = num * Math.PI / 6;
+                    ctx.rotate(ang);
+                    ctx.translate(0, -radius * 0.85);
+                    ctx.rotate(-ang);
+                    ctx.fillText(num.toString(), 0, 0);
+                    ctx.rotate(ang);
+                    ctx.translate(0, radius * 0.85);
+                    ctx.rotate(-ang);
+                }
+            }
+
+
+            function drawTime(ctx, radius) {
+                var now = date;
+                var hour = now.getHours();
+                var minute = now.getMinutes();
+                var second = now.getSeconds();
+                //hour
+                setBg(hour);
+                hour = hour % 12;
+                hour = (hour * Math.PI / 6) +
+                        (minute * Math.PI / (6 * 60)) +
+                        (second * Math.PI / (360 * 60));
+                drawHand(ctx, hour, radius * 0.5, radius * 0.07);
+                //minute
+                minute = (minute * Math.PI / 30) + (second * Math.PI / (30 * 60));
+                drawHand(ctx, minute, radius * 0.8, radius * 0.07);
+                // second
+                second = (second * Math.PI / 30);
+                drawHand(ctx, second, radius * 0.9, radius * 0.02);
+
+            }
+
+
+            function drawHand(ctx, pos, length, width) {
+                ctx.beginPath();
+                ctx.lineWidth = width;
+                ctx.lineCap = "round";
+                ctx.moveTo(0, 0);
+                ctx.rotate(pos);
+                ctx.lineTo(0, -length);
+                ctx.stroke();
+                ctx.rotate(-pos);
+            }
+
+        </script>        
+
+        <script>
+            /* Get the documentElement (<html>) to display the page in fullscreen */
+            var elem = document.documentElement;
+
+            /* View in fullscreen */
+            function openFullscreen() {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE11 */
+                    elem.msRequestFullscreen();
+                }
+            }
+
+            /* Close fullscreen */
+            function closeFullscreen() {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { /* Safari */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE11 */
+                    document.msExitFullscreen();
+                }
+            }
+        </script>
+        <script>
+            var digital = true;
+
+            function setDigital(digital) {
+                if (digital) {
+                    document.getElementById("side").style.fontSize = '150px';
+                    document.getElementById("side").style.float = 'none';
+                } else {
+                    document.getElementById("side").style.fontSize = '150px';
+                    document.getElementById("side").style.float = 'none';
+                }
+                toggleClock(digital);
+
+            }
+            setDigital(true);
+
+            function showTimeSelect() {
+                date = new Date();
+                if (digital) {
+                    showTime();
+                } else {
+                    drawClock();
+                }
+
+                var h = date.getHours(); // 0 - 23
+                var m = date.getMinutes(); // 0 - 59
+                var s = date.getSeconds(); // 0 - 59
+                if (h === 20 && m === 29 && s === 0) {
+                    beep();
+                }
+                /*
+                let day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
+                if (day === 'sun' || day === 'sat') {
+                } else {
+                    if (day === 'tue') {
+                        if (h === 8 && m === 5 && s === 0) {
+                            //setTimeout(alarm, 0);
+                            addAlarm(0);
+                        }
+                        if (h === 8 && m === 45 && s === 0) {
+                            //setTimeout(alarm, 0);
+                            addAlarm(0);
+                        }
+                    } else {
+                        if (h === 7 && m === 15 && s === 0) {
+                            //setTimeout(alarm, 0);
+                            addAlarm(0);
+                        }
+                        if (h === 7 && m === 55 && s === 0) {
+                            addAlarm(0);
+                        }
+                    }
+                }
+                */
+                setTimeout(showTimeSelect, 1000);
+            }
+
+            function toggleClock(set) {
+                if (set) {
+                    digital = set;
+                } else {
+                    digital = digital ? false : true;
+                }
+                if (digital) {
+                    document.getElementById("MyClockDisplay").style.display = 'block';
+                    document.getElementById("canvas").style.display = 'none';
+                } else {
+                    document.getElementById("MyClockDisplay").style.display = 'none';
+                    document.getElementById("canvas").style.display = 'block';
+                }
+                //alert(digital)
+            }
+
+            var fullscreen = false;
+            window.onload = function ()
+            {
+                body = document.getElementsByTagName("BODY")[0];
+                alarms = document.getElementById("alarms");
+                alarmActive = document.getElementById("alarmActive");
+                //var redDiv = document.getElementsByTagName("BODY")[0];
+                //console.log(redDiv)
+                body.onclick = function (e) {
+
+                    var ev = e || window.event;
+                    //console.log(e.target, this)
+                    if (e.target === alarmActive) {
+                        alarms.style.display = 'block';
+                        alarmActive.style.display = 'none';
+                        if (alarmtimeout) {
+                            clearTimeout(alarmtimeout);
+                            alarmtimeout = null;
+                        }
+                        return;
+                    }
+                    let arr = document.getElementsByClassName("alarm");
+                    for (let i = 0; i < arr.length; i++) {
+                        if (e.target === arr[i]) {
+                            if (alarmNum1 === -1) {
+                                alarmNumElem = arr[i];
+                                alarmNumColor = alarmNumElem.style.backgroundColor;
+                                alarmNumElem.style.backgroundColor = 'white';
+                                alarmNum1 = parseInt(arr[i].innerText);
+                                break;
+                            } else {
+                                addAlarm(10 * alarmNum1 + parseInt(arr[i].innerText));
+                                alarmNum1 = -1;
+                                alarmNumElem.style.backgroundColor = alarmNumColor;
+                                return;
+                            }
+                        }
+                    }
+                    //console.log(e.target)
+                    if (e.target === document.getElementById("MyClockDisplay") ||
+                            e.target === document.getElementById("canvas")) {
+                        toggleClock();
+                    }
+                    /*if (e.target !== this)
+                     return;*/
+                    //console.log('red div was clicked');
+                    if (!fullscreen) {
+                        fullscreen = true;
+                        openFullscreen();
+                        //beep();
+
+                    }
+                }
+                showTimeSelect();
+            }
+
+            function beep() {
+                var snd = new Audio("https://media.geeksforgeeks.org/wp-content/uploads/20190531135120/beep.mp3");
+                snd.play();
+            }
+        </script>
+        <script>
+            function getXml(u) {
+                console.log(u);
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        myFunction(this);
+                    }
+                };
+                xhttp.open("GET", u, true);
+                xhttp.send();
+            }
+
+            function myFunction(xml) {
+                var xmlDoc = xml.responseXML;
+                let text = xml.responseText;
+                let p = text.indexOf('obs-obs-1-1-t2m');
+                //console.log(text)
+                let t;
+                if (p > 0) {
+                    p = text.indexOf('<wml2:value>', p);
+                    if (p > 0) {
+                        p += '<wml2:value>'.length;
+                        t = parseInt(text.substr(p));
+                        let plus = t >= 0 ? '+' : '';
+                        document.getElementById("temp").innerHTML = plus + t + '&#xb0;C'; // + (t >= 0) ? '+' : '';
+                        //console.log(t)
+                    }
+                    //console.log(text.substr(p))
+                }
+                p = text.indexOf('obs-obs-1-1-ws_10min');
+                if (p > 0) {
+                    p = text.indexOf('<wml2:value>', p);
+                    if (p > 0) {
+                        p += '<wml2:value>'.length;
+                        let w = parseInt(text.substr(p));
+                        //console.log(w)
+                        //console.log(document.getElementById("temp"))
+                        p = text.indexOf('obs-obs-1-1-wd_10min');
+                        if (p > 0) {
+                            p = text.indexOf('<wml2:time>', p);
+                            if (p > 0) {
+                                p += '<wml2:time>'.length;
+                                let time = new Date(Date.parse(text.substr(p, 20))); // 2019-01-01T00:00:00.000Z
+                                let d = time.getHours() + ':' + time.getMinutes();
+                                let old = (new Date() - time);
+                                if (old / 1000 > 600) {
+                                    console.log(old / 1000)
+                                    document.getElementById("weather").style.color = 'gray';
+                                } else {
+                                    //document.getElementById("weather").style.color = 'gray';
+                                }
+                                //document.getElementById("weather-time").innerHTML = date;
+                                if (p > 0) {
+                                    p = text.indexOf('<wml2:value>', p);
+                                    if (p > 0) {
+                                        p += '<wml2:value>'.length;
+                                        let wd = parseInt(text.substr(p));
+                                        document.getElementById("wind").innerHTML = w + '/' + wd + '&#xb0;';
+                                    }
+                                }
+                            }
+                        }
+
+                        //return {t: t, w: w};
+                    }
+                }
+                //return null;
+                //const parser = new DOMParser();
+                //const xmlDOM = parser.parseFromString(text, "text/xml");
+                //const value = xmlDOM.getElementsByTagName("target:member");
+                //$("[nodeName=aws:year]").attr('number')
+                //let s = $("gml\:id").attr('obs-obs-1-1-t2m');
+
+//                let ns = xmlDoc.getElementsByTagNameNS("http://www.opengis.net/wfs/2.0", 'wfs')
+                //console.log(s)
+                //var x = xmlDoc.getElementsByTagName('wfs:member')
+                //console.log(x)
+                //var a = xmlDoc.getElementById("time1-1-1");
+                //console.log(a);
+//var greetNode = xmlDoc.getElementsByTagName('om')[0];                
+//console.log(greetNode)
+                /*                var dom = new DOMParser( ).parseFromString(xml.responseText,
+                 "application/xml");*/
+//console.log(dom)
+                /*var location = dom.getElementsByTagNameNS (
+                 "http://www.opengis.net/gml", "id" ) [0];
+                 
+                 console.log(location)*/
+                //return xmlDoc.getElementById("obs-obs-1-1-ws_10min");
+                /*document.getElementById("demo").innerHTML =
+                 xmlDoc.getElementsByTagName("title")[0].childNodes[0].nodeValue;*/
+            }
+        </script>
+
+        <script>
+            function getWeather() {
+                //https://opendata.fmi.fi/wfs/fin?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::timevaluepair&place=Vihre%C3%A4saari&parameters=ws_10min,t2m&timestep=600
+                let d = new Date();
+                d.setMinutes(d.getMinutes() - 3);
+                var ut = d.toISOString(); // 2021-09-18T16:48:30.092Z
+                var u = 'https://opendata.fmi.fi/wfs/fin?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::weather::timevaluepair&place=Vihre%C3%A4saari&parameters=ws_10min,wd_10min,t2m&starttime=' + ut;
+                getXml(u);
+                let h = d.getHours();
+                if (h >= 6 && h <= 18) {
+                    setTimeout(getWeather, 15 * 60 * 1000)
+                } else {
+                    setTimeout(getWeather, 60 * 60 * 1000)
+                }
+                //console.log(meas);
+            }
+            setTimeout(getWeather(), 0);
+        </script>
+    </body>
+</html>
