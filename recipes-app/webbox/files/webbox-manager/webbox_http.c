@@ -4,10 +4,13 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/poll.h>
 
 #include "webbox_module.h"
 
 #include "webbox_http.h"
+
+static int http_socket;
 
 // order reversed for canonical path
 static webbox_http_command *commands[] = {
@@ -16,10 +19,7 @@ static webbox_http_command *commands[] = {
     &webbox_http_get,
 };
 
-static int sockets[5]; // first socket to listen :80 then some for clients
-
 void http_line(int socket, const char *const text) {
-    if (fcntl(sockets[0], F_GETFD) == -1 || errno == EBADF) return;
     if (send(socket, text, strlen(text), 0) != strlen(text)) {
         perror("send");
     }
@@ -32,7 +32,7 @@ static void http_response(int socket) {
     http_line(socket, "\r\n");
 }
 
-static int http_socket(int port) {
+static int http_listen(int port) {
     printf("%s port=%d\n", __func__, port);
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -53,7 +53,7 @@ static int http_socket(int port) {
         perror("bind");
     }
 
-    if (listen(sock, 4) == -1) {
+    if (listen(sock, 1) == -1) {
         perror("listen");
     }
 
@@ -81,6 +81,7 @@ int http_command(int sock, const char* line) {
             for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
                 webbox_http_command *command = commands[i];
                 if (strncmp(path, command->name, strlen(command->name) - 1) == 0) {
+                    printf("Command: %s\n", command->name);
                     command->handle(sock, path + strlen(command->name));
                     /*if (!command->handle(sock, path + strlen(command->name))) {
                         http_response(sock);
@@ -92,90 +93,95 @@ int http_command(int sock, const char* line) {
     }
 }
 
-static bool module_init(int manager_socket) {
-    for (int i = 0; i < sizeof(sockets)/sizeof(sockets[0]); i++) 
-    {
-        sockets[i] = -1;
-    }
+static bool process(int manager_socket) {
+    http_socket = http_listen(80);
 
-    sockets[0] = http_socket(80);
+    // client is closed after response so actually polling always just for http_socket
+    int nfds = 0;
+    struct pollfd poll_fds[1];
+    memset(poll_fds, 0 , sizeof(poll_fds));
 
-    fd_set active_fd_set;
+    poll_fds[0].fd = http_socket;
+    poll_fds[0].events = POLLIN;
+    nfds++;
 
-    while (fcntl(sockets[0], F_GETFD) != -1 || errno != EBADF) {
-        FD_ZERO(&active_fd_set);
-        int fd_set_max = -1;
-        for (int i=0 ; i < sizeof(sockets)/sizeof(sockets[0]); i++) {
-            int fd = sockets[i];
-            if(fd >= 0) {
-                FD_SET(fd, &active_fd_set);
-            }
-            if(fd > fd_set_max) {
-                fd_set_max = fd;
-            }
+    while (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
+        int n = poll(poll_fds, nfds, -1);
+        printf("http: poll %d\n", n);
+        if (n < 0) {
+          perror("poll");
+          break;
         }
 
-        int activity = select(fd_set_max + 1, &active_fd_set, NULL, NULL, NULL);
-        if (activity == -1) {
-            if (errno != EINTR) {
-                perror("select");
-            }
-            continue;
-        }
-
-        if (FD_ISSET(sockets[0], &active_fd_set)) {
-            int i;
-            for (i = 0; i < sizeof(sockets)/sizeof(sockets[0]); i++) {
-                if (sockets[i] == -1) {
+        for (int i = 0; i < n; i++) { // loop active fd count
+            for (; i < n; i++) { // find next active fd
+                if(poll_fds[i].revents != 0) {
                     break;
                 }
             }
-            if (i == sizeof(sockets)/sizeof(sockets[0])) {
-                printf("%s: out of sockets\n", __func__);
-                sleep(1);
-                continue;
+
+            if(poll_fds[i].revents != POLLIN) {
+                printf("poll revents %d\n", poll_fds[i].revents);
+                break;
             }
 
-            sockets[i] = http_accept(sockets[0]);
-            if (sockets[i] == -1) {
-                perror("accept");
-                continue;
-            }
+            if (poll_fds[i].fd == http_socket) { // new client
+                printf("http: new client %d\n", i);
+                /*
+                    int j;
+                    for (j=0; i<sizeof(poll_fds)/sizeof(poll_fds[0]); j++) {
+                    if (poll_fds[j].fd == -1) {
+                        break;
+                    }
+                }
+                if (j == sizeof(sockets)/sizeof(sockets[0])) {
+                    printf("%s: out of sockets\n", __func__);
+                    sleep(1);
+                    continue;
+                }*/
 
-            FD_SET(sockets[i], &active_fd_set);
-        }
+                int client_fd = http_accept(http_socket);
+                if (client_fd == -1) {
+                    perror("accept");
+                    continue;
+                }
 
-        for (int i = 1; i < sizeof(sockets)/sizeof(sockets[0]); i++) {
-            int sock = sockets[i];
-            if (FD_ISSET(sock, &active_fd_set)) {
-                char buffer[1024];
-                int n = read(sockets[i], buffer, 1024);
-                if (n == -1) {
+                /*
+                poll_fds[j].fd = client_fd;
+                poll_fds[j].events = POLLIN;
+                nfds++;
+                */
+
+                char buf[1024];
+                int len = read(client_fd, buf, sizeof(buf)-1);
+                if (len < 0) {
                     perror("read");
+                    break;
                 }
-                if (n > 0) {
-                    buffer[n] = '\0';
-                    http_command(sockets[i], buffer);
+                if (len == 0) { // unexpected close
+                    continue;
                 }
-                close(sockets[i]);
-                sockets[i] = -1;
+
+                buf[len] = '\0';
+                http_command(client_fd, buf);
+
+                close(client_fd);
+                /*
+                poll_fds[j].fd = -1;
+                nfds--;
+                */
             }
         }
     }
     return false;
 }
 
-static void module_exit(int sig_no) {
-    for (int i = 0; i < sizeof(sockets)/sizeof(sockets[0]); i++) {
-        if (sockets[i] >= 0) {
-            close(sockets[i]);
-            sockets[i] = -1;
-        }
-    }
+static void signal_handler(int sig_no) {
+    close(http_socket);
 }
 
 webbox_module webbox_http = {
     .name = __FILE__,
-    .init = module_init,
-    .exit = module_exit,
+    .process = process,
+    .signal_handler = signal_handler,
 };

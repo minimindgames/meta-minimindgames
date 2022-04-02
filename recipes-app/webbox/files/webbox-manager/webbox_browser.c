@@ -3,7 +3,7 @@
 
 #include "webbox_module.h"
 
-static bool module_init(int manager_socket) {
+static bool process(int manager_socket) {
     if (execl("/usr/bin/firefox", "firefox", "-headless", NULL) == -1) {
         perror("execl");
     }
@@ -12,5 +12,5 @@ static bool module_init(int manager_socket) {
 
 webbox_module webbox_browser = {
     .name = __FILE__,
-    .init = module_init,
+    .process = process,
 };

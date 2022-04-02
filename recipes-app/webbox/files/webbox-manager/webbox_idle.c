@@ -13,7 +13,7 @@
 
 static int sockets[2]; // js-dev, manager_socket
 
-static bool module_init(int manager_socket) {
+static bool process(int manager_socket) {
     for (int i = 0; i < sizeof(sockets)/sizeof(sockets[0]); i++) 
     {
         sockets[i] = -1;
@@ -90,14 +90,14 @@ static bool module_init(int manager_socket) {
     return false;
 }
 
-static void module_exit(int sig_no) {
+static void signal_handler(int sig_no) {
     close(sockets[0]);
 }
 
 webbox_module webbox_idle = {
     .name = __FILE__,
-    .init = module_init,
-    .exit = module_exit,
+    .process = process,
+    .signal_handler = signal_handler,
 };
 
 

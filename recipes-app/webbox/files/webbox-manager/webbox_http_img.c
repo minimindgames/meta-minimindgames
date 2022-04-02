@@ -4,7 +4,7 @@
 
 static void command(int socket, const char const *path) {
     char buf[80];
-    int len = snprintf(buf, sizeof(buf), "/usr/lib/webbox/html/img%s", path);
+    int len = snprintf(buf, sizeof(buf), "/usr/lib/webbox-manager/html/img%s", path);
     if (len > sizeof(buf)) {
         return;
     }

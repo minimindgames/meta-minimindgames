@@ -4,8 +4,10 @@
 
 static void command(int socket, const char const *path) {
     char buf[80];
-    int len = snprintf(buf, sizeof(buf), "/usr/lib/webbox/html/%sindex.html", path);
+    int len = snprintf(buf, sizeof(buf), "/usr/lib/webbox-manager/html/%sindex.html", path);
     if (len > sizeof(buf)) {
+        buf[sizeof(buf)] = '\0';
+        printf("Path overflow: %s (%d)\n", buf, len);
         return;
     }
 
@@ -22,6 +24,7 @@ static void command(int socket, const char const *path) {
             perror("ftell");
         } else {
             length++; // for '\0'
+	    printf("Send %d\n", length);
             if (fseek (file, 0, SEEK_SET) == 0) {
                 char *buffer = (char*)malloc (length);
                 if (buffer) {
@@ -37,6 +40,8 @@ static void command(int socket, const char const *path) {
             }
         }
         fclose (file);
+    } else {
+        printf("Path not found: %s\n", buf);
     }
 }
 

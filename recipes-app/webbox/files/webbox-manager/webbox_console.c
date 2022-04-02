@@ -5,7 +5,7 @@
 
 #include "webbox_module.h"
 
-static bool module_init(int manager_socket) {
+static bool process(int manager_socket) {
     while (fcntl(STDIN_FILENO, F_GETFD) != -1 || errno != EBADF) {
         char buf[80];
         int rc = read(STDIN_FILENO, buf, sizeof(buf));
@@ -17,12 +17,12 @@ static bool module_init(int manager_socket) {
     return false;
 }
 
-static void module_exit(int sig_no) {
+static void signal_handler(int sig_no) {
     close(STDIN_FILENO);
 }
 
 webbox_module webbox_console = {
     .name = __FILE__,
-    .init = module_init,
-    .exit = module_exit,
+    .process = process,
+    .signal_handler = signal_handler,
 };

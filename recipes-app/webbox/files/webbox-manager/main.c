@@ -39,7 +39,7 @@ static bool start_modules(void) {
 
     for (int i=0; i<sizeof(modules)/sizeof(modules[0]); i++) {
         webbox_module *module = modules[i];
-        if (!webbox_module_init(module, fd)) {
+        if (!webbox_module_process(module, fd)) {
             return false;
         }
     }
@@ -51,7 +51,7 @@ static void stop_modules() {
     printf("%s\n", __func__);
 
     for (int i=sizeof(modules)/sizeof(modules[0])-1; i>=0; i--) {
-        webbox_module_exit(modules[i]);
+        webbox_module_signal(modules[i]);
     }
 }
 

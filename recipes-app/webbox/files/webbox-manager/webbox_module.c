@@ -6,7 +6,7 @@
 
 #include "webbox_module.h"
 
-bool webbox_module_init(webbox_module *module, int manager_socket) {
+bool webbox_module_process(webbox_module *module, int manager_socket) {
     printf("%s: %s\n", __func__, module->name);
 
     module->pid = -1;
@@ -17,12 +17,16 @@ bool webbox_module_init(webbox_module *module, int manager_socket) {
             break;
         case 0:
             // child
-            if (module->exit) {
-                if (signal(SIGTERM, module->exit) == SIG_ERR) {
+            if (module->signal_handler) {
+                if (signal(SIGTERM, module->signal_handler) == SIG_ERR) {
                     perror("SIGTERM");
                 }
             }
-            exit(module->init(manager_socket) ? EXIT_SUCCESS : EXIT_FAILURE);
+            int success = module->process(manager_socket);
+            if (!success) {
+                // restart
+            }
+            exit(success ? EXIT_SUCCESS : EXIT_FAILURE);
         default:
             // parent
             module->pid = pid;
@@ -32,7 +36,7 @@ bool webbox_module_init(webbox_module *module, int manager_socket) {
     return (pid != -1);
 }
 
-void webbox_module_exit(webbox_module *module) {
+void webbox_module_signal(webbox_module *module) {
     printf("%s: %s pid=%d\n", __func__, module->name, module->pid);
 
     if (module->pid != -1) {
