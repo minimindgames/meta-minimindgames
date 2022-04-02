@@ -14,7 +14,7 @@ static int http_socket;
 
 // order reversed for canonical path
 static webbox_http_command *commands[] = {
-    &webbox_http_suspend,
+    &webbox_http_power,
     &webbox_http_img,
     &webbox_http_get,
 };

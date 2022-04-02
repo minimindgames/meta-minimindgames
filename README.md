@@ -666,7 +666,7 @@ add_executable(WebboxManager main.c)
 Generate cmake, build sources and run WebboxManager program on host to see all should be good.
 ```
 cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Debug .. # debug build on host only, for target simply "cmake .."
 make
 ./WebboxManager
 ```

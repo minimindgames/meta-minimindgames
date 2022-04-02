@@ -16,7 +16,7 @@ static void command(int sock, const char const *msg) {
     }
 }
 
-webbox_http_command webbox_http_suspend = {
-    .name = "/suspend",
+webbox_http_command webbox_http_power = {
+    .name = "/power/",
     .handle = command,
 };
