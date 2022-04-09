@@ -1,6 +1,6 @@
 #include "webbox_http.h"
 
-static void command(int sock, const char const *msg) {
+static bool command(int sock, const char const *msg) {
     const char response[] = "Device info";
     if (send(sock, response, sizeof(response), 0) != sizeof(response)) {
         perror("send");

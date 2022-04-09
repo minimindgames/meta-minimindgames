@@ -284,10 +284,7 @@
         </script>        
 
         <script>
-            /* Get the documentElement (<html>) to display the page in fullscreen */
             var elem = document.documentElement;
-
-            /* View in fullscreen */
             function openFullscreen() {
                 if (elem.requestFullscreen) {
                     elem.requestFullscreen();
@@ -298,7 +295,6 @@
                 }
             }
 
-            /* Close fullscreen */
             function closeFullscreen() {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
@@ -340,29 +336,29 @@
                     beep();
                 }
                 /*
-                let day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
-                if (day === 'sun' || day === 'sat') {
-                } else {
-                    if (day === 'tue') {
-                        if (h === 8 && m === 5 && s === 0) {
-                            //setTimeout(alarm, 0);
-                            addAlarm(0);
-                        }
-                        if (h === 8 && m === 45 && s === 0) {
-                            //setTimeout(alarm, 0);
-                            addAlarm(0);
-                        }
-                    } else {
-                        if (h === 7 && m === 15 && s === 0) {
-                            //setTimeout(alarm, 0);
-                            addAlarm(0);
-                        }
-                        if (h === 7 && m === 55 && s === 0) {
-                            addAlarm(0);
-                        }
-                    }
-                }
-                */
+                 let day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
+                 if (day === 'sun' || day === 'sat') {
+                 } else {
+                 if (day === 'tue') {
+                 if (h === 8 && m === 5 && s === 0) {
+                 //setTimeout(alarm, 0);
+                 addAlarm(0);
+                 }
+                 if (h === 8 && m === 45 && s === 0) {
+                 //setTimeout(alarm, 0);
+                 addAlarm(0);
+                 }
+                 } else {
+                 if (h === 7 && m === 15 && s === 0) {
+                 //setTimeout(alarm, 0);
+                 addAlarm(0);
+                 }
+                 if (h === 7 && m === 55 && s === 0) {
+                 addAlarm(0);
+                 }
+                 }
+                 }
+                 */
                 setTimeout(showTimeSelect, 1000);
             }
 
@@ -411,7 +407,7 @@
                                 alarmNumColor = alarmNumElem.style.backgroundColor;
                                 alarmNumElem.style.backgroundColor = 'white';
                                 alarmNum1 = parseInt(arr[i].innerText);
-                                break;
+                                return;
                             } else {
                                 addAlarm(10 * alarmNum1 + parseInt(arr[i].innerText));
                                 alarmNum1 = -1;
@@ -420,19 +416,19 @@
                             }
                         }
                     }
-                    //console.log(e.target)
                     if (e.target === document.getElementById("MyClockDisplay") ||
                             e.target === document.getElementById("canvas")) {
-                        toggleClock();
+                        //toggleClock();
                     }
+                    //console.log(e.target, this)
+                    
+                    window.location = '/';
                     /*if (e.target !== this)
                      return;*/
                     //console.log('red div was clicked');
                     if (!fullscreen) {
-                        fullscreen = true;
-                        openFullscreen();
-                        //beep();
-
+                        //fullscreen = true;
+                        //openFullscreen();
                     }
                 }
                 showTimeSelect();

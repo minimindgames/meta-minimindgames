@@ -5,17 +5,20 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/poll.h>
+#include<pthread.h> //for threading , link with lpthread
 
 #include "webbox_module.h"
 
 #include "webbox_http.h"
 
 static int http_socket;
+static int client_fd = -1;
 
 // order reversed for canonical path
 static webbox_http_command *commands[] = {
+    &webbox_http_vlc,
     &webbox_http_power,
-    &webbox_http_img,
+    //&webbox_http_img,
     &webbox_http_get,
 };
 
@@ -77,23 +80,55 @@ int http_command(int sock, const char* line) {
             char path[path_end - path_start];
             strncpy(path, path_start, sizeof(path));
             path[sizeof(path)] = '\0';
-            printf("HTTP: %s (%ld)\n", path, strlen(path));
+            //printf("HTTP: %s (%ld)\n", path, strlen(path));
             for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
                 webbox_http_command *command = commands[i];
-                if (strncmp(path, command->name, strlen(command->name) - 1) == 0) {
-                    printf("Command: %s\n", command->name);
-                    command->handle(sock, path + strlen(command->name));
+                if (strncmp(path, command->name, strlen(command->name)) == 0) {
+                    //printf("http command: %s\n", command->name);
+                    if (command->handle(sock, path + strlen(command->name))) {
+                        break;
+                    }
                     /*if (!command->handle(sock, path + strlen(command->name))) {
                         http_response(sock);
                     }*/
-                    break;
                 }
             }
         }
     }
 }
 
+static void *connection_handler(void *socket_desc) {
+    int sock = *(int*)socket_desc;
+                char buf[1024];
+                int len = read(sock, buf, sizeof(buf)-1);
+                if (len < 0) {
+                    if (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
+                        perror("read client");
+                    }
+printf("len\n");
+                    return 0;
+                }
+                if (len == 0) { // unexpected close
+printf("closed\n");
+                    return 0;
+                }
+
+                buf[len] = '\0';
+                //printf("HTTP:\n%s\n", buf);
+                http_command(sock, buf);
+
+                close(sock);
+return 0;
+}
+
 static bool process(int manager_socket) {
+    for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
+        webbox_http_command *command = commands[i];
+        if (command->init) {
+            command->init();
+        }
+    }
+
     http_socket = http_listen(80);
 
     // client is closed after response so actually polling always just for http_socket
@@ -107,7 +142,7 @@ static bool process(int manager_socket) {
 
     while (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
         int n = poll(poll_fds, nfds, -1);
-        printf("http: poll %d\n", n);
+        //printf("http: poll %d\n", n);
         if (n < 0) {
           perror("poll");
           break;
@@ -126,7 +161,7 @@ static bool process(int manager_socket) {
             }
 
             if (poll_fds[i].fd == http_socket) { // new client
-                printf("http: new client %d\n", i);
+                //printf("http: new client %d\n", i);
                 /*
                     int j;
                     for (j=0; i<sizeof(poll_fds)/sizeof(poll_fds[0]); j++) {
@@ -140,12 +175,18 @@ static bool process(int manager_socket) {
                     continue;
                 }*/
 
-                int client_fd = http_accept(http_socket);
+                client_fd = http_accept(http_socket);
                 if (client_fd == -1) {
                     perror("accept");
                     continue;
                 }
 
+        /*pthread_t thread_id;
+        if( pthread_create( &thread_id , NULL ,  connection_handler , (void*) &client_fd) < 0)
+        {
+            perror("could not create thread");
+        }
+        continue;*/
                 /*
                 poll_fds[j].fd = client_fd;
                 poll_fds[j].events = POLLIN;
@@ -155,7 +196,9 @@ static bool process(int manager_socket) {
                 char buf[1024];
                 int len = read(client_fd, buf, sizeof(buf)-1);
                 if (len < 0) {
-                    perror("read");
+                    if (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
+                        perror("read client");
+                    }
                     break;
                 }
                 if (len == 0) { // unexpected close
@@ -163,9 +206,11 @@ static bool process(int manager_socket) {
                 }
 
                 buf[len] = '\0';
+                //printf("HTTP:\n%s\n", buf);
                 http_command(client_fd, buf);
 
                 close(client_fd);
+                client_fd = -1;
                 /*
                 poll_fds[j].fd = -1;
                 nfds--;
@@ -177,7 +222,16 @@ static bool process(int manager_socket) {
 }
 
 static void signal_handler(int sig_no) {
+    for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
+        webbox_http_command *command = commands[i];
+        if (command->exit) {
+            command->exit();
+        }
+    }
     close(http_socket);
+    if (client_fd != -1) {
+        close(client_fd);
+    }
 }
 
 webbox_module webbox_http = {

@@ -13,15 +13,7 @@
 
 static webbox_module *modules[] = {
     &webbox_console,
-#ifdef BROWSER
-    &webbox_browser,
-#endif
-#ifdef HTTP
     &webbox_http,
-#endif
-#ifdef IDLE
-    &webbox_idle,
-#endif
 };
 
 static const char manager_socket_name[] = "\0WebboxManager";

@@ -50,7 +50,8 @@ BBLAYERS ?= " \
 - [Wake on WLAN](#wake-on-wlan)
 - [Remote desktop protocol](#remote-desktop-protocol)
 - [Video and audio player](#video-and-audio-player)
-- [VLC remote interface](vlc-remote-interface)
+- [VLC remote](vlc-remote)
+- [VLC custom](vlc-custom)
 - [Application development](#application-development)
 - [Webbox Manager](#webbox-manager)
 - [HTTP server](#http-server)
@@ -561,7 +562,7 @@ intel-corei7-64:/home/weston$ nvlc <url-file-or-folder>
 
 Here is a list of some nice music streams to get started building your favorite playlists https://wiki.secondlife.com/wiki/Music_streams
 
-## VLC remote interface
+## VLC remote
 
 VLC has a bunch of interfaces, see https://wiki.videolan.org/Interfaces/
 ```
@@ -586,6 +587,14 @@ Open another terminal on Webbox and start `python3`.
 ```
 
 It couldn't work any better and with unix-socket it's easy to integrate with whatsoever.
+
+But, there is always a but... VLC with `oldrc` simply denies to work for me when I try to start it from a script to background as a systemd-service.
+
+## VLC custom
+
+I have tried to use many of VLC remote control interfaces and they all suck. Let's code something better with https://wiki.videolan.org/LibVLC_Tutorial
+
+
 
 ## Application development
 

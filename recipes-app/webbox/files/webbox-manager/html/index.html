@@ -55,52 +55,69 @@
                 <p>
                     Webbox is a do-it-yourself project to build a lightweight and fully customisable Internet appliance for web browsing, streaming and gaming on Yocto/Linux compatible devices, such as Intel NUC and Raspberrypi.
                 </p>-->
-        <div id="nav">
+        <div id="playlists">
         </div>
 
-        <div id="webbox-response"></div>
-
-        <div class="page" id="clock">
-            <span class="close">&times;</span>
-            <p>Some text in the Modal..</p>
-        </div>
-
+        <div id="webbox-response">Webbox...</div>
+        <!--<img src="img/icon-clock.png" />
+        <img src="img/icon-power.png" />
+        <img src="img/icon-VLC.png" />
+        <img src="img/icon-YouTube.png" />
+        <img src="img/icon-Chromium.png" />-->
         <script>
-            function addButton(id) {
+            const nav = document.createElement("div");
+            function addButton(id, name) {
                 let button = document.createElement("button");
                 button.name = id;
-                button.innerHTML = '<img src="img/icon-' + id + '.png" /><br>' + id;
+                //button.innerHTML = '<img src="img/icon-' + id + '.png" /><div style="margin-top: 1em;">' + (name ? name : id) + '</div>';
+                const image = document.createElement("img")
+                image.src = src = "img/icon-" + id + ".png";
+                button.appendChild(image);
+                const div = document.createElement("div");
+                button.appendChild(div);
+                const text = document.createTextNode(name ? name : id);
+                div.appendChild(text);
                 button.classList.add("icon");
-                document.getElementById("nav").appendChild(button);
+                nav.appendChild(button);
                 return button;
             }
-            addButton("clock").onclick = function () {
-                window.location = this.name + '/';
+            nav.id = 'nav';
+            window.onload = function () {
+                addButton("power").onclick = function () {
+                    //window.location = this.name + '/suspend/';
+                    send_command(this.name + '/suspend/');
+                }
+                addButton("clock").onclick = function () {
+                    window.location = this.name + '/';
+                }
+                addButton("Chromium").onclick = function () {
+                    //this._fullscreen.closeFullscreen();
+                    window.open("https://google.com/", '_blank').focus();
+                }
+                addButton("YouTube").onclick = function () {
+                    window.location = 'https://www.youtube.com/';
+                }
+                addButton("Music", "YouTube Music").onclick = function () {
+                    window.location = 'https://music.youtube.com/';
+                }
+                addButton("VLC").onclick = function () {
+                    window.location = this.name + '/';
+                }
+                document.getElementById("playlists").appendChild(nav);
             }
-            addButton("video").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("music").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("picture").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("game").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("touchpad").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("device").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("power").onclick = function () {
-                window.location = this.name + '/';
-            }
-            addButton("webbox").onclick = function () {
-                window.location = this.name + '/';
-            }
+            /*
+             addButton("game").onclick = function () {
+             window.location = this.name + '/';
+             }
+             addButton("touchpad").onclick = function () {
+             window.location = this.name + '/';
+             }
+             addButton("device").onclick = function () {
+             window.location = this.name + '/';
+             }*/
+            /*addButton("about").onclick = function () {
+             window.location = this.name + '/';
+             }*/
         </script>
 
         <script>
@@ -108,12 +125,39 @@
                 var xhttp = new XMLHttpRequest();
                 xhttp.onreadystatechange = function () {
                     if (this.readyState == 4 && this.status == 200) {
+                        console.log(this.responseText);
                         document.getElementById("webbox-response").innerHTML =
                                 this.responseText;
+                    } else {
+                        document.getElementById("webbox-response").innerHTML =
+                                "Requesting...";
                     }
                 };
                 xhttp.open("GET", command, true);
                 xhttp.send();
+            }
+        </script>
+
+        <script>
+            var elem = document.documentElement;
+            function openFullscreen() {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE11 */
+                    elem.msRequestFullscreen();
+                }
+            }
+
+            function closeFullscreen() {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { /* Safari */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE11 */
+                    document.msExitFullscreen();
+                }
             }
         </script>
 

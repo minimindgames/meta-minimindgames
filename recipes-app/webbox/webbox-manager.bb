@@ -9,6 +9,9 @@ SRC_URI = "\
 S = "${WORKDIR}/webbox-manager"
 #S = "${WORKDIR}"
 
+DEPENDS += "vlc"
+RDEPENDS_${PN} += "libvlc"
+
 inherit cmake
 
 EXTRA_OECMAKE = ""
