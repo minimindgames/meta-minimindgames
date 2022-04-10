@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 #include <sys/un.h>
 #include <dirent.h> 
 #if VLC
@@ -115,8 +116,12 @@ static int start_vlc(const char const *folder) {
             perror("vlc process");
             break;
         case 0: {
+/*    for (;;)
+    {
+      printf("Child Process. parent process id is %u\n", getppid());
+      sleep(1);
+    }*/
             // child
-            printf("Start VLC %s\n", folder);
             setuid(1000);
             setgid(1000);
             putenv("HOME=/home/weston");
@@ -125,16 +130,15 @@ static int start_vlc(const char const *folder) {
             libvlc_media_player_t *mp;
             
             playlist *p = get_files(folder);
+//setvbuf(stdout, 0, _IONBF, 0);
 while (p) {
     char buf[1024];
     int len = snprintf(buf, sizeof(buf), WEBBOX_LIB_PATH "/playlists/%s/%s", folder, p->folder);
     if (len > sizeof(buf)) {
         buf[sizeof(buf)] = '\0';
         printf("VLC path: %s (%d)\n", buf, len);
+	break;
     }
-
-    printf("VLC playing %s\n", buf);
-
 
      libvlc_media_t *m;
     char latest_config[1024];
@@ -143,6 +147,7 @@ while (p) {
     if (latest_len >= sizeof(latest_config)) {
         latest_config[sizeof(latest_config)-1] = '\0';
         printf("VLC path: %s (%d)\n", latest_config, latest_len);
+	break;
     }
     FILE *file = fopen (latest_config, "wt");
     if (file) {
@@ -151,7 +156,7 @@ while (p) {
     }        
 
 #if !CMAKE_CROSSCOMPILING
-    break;
+//    break;
 #endif
     //m = libvlc_media_new_location (inst, url);
      m = libvlc_media_new_path (inst, buf);
@@ -161,16 +166,68 @@ while (p) {
      }
 
      mp = libvlc_media_player_new_from_media (m);
+
+/*    vlc_sem_t sem;
+    vlc_sem_init(&sem, 0);
+
+    libvlc_event_manager_t *p_em = libvlc_media_player_event_manager(mp);
+    libvlc_event_attach(p_em, libvlc_MediaPlayerPlaying, finished_event, &sem);
+    libvlc_event_attach(p_em, libvlc_MediaPlayerEndReached, finished_event, &sem);
+    libvlc_event_attach(p_em, libvlc_MediaPlayerEncounteredError, finished_event, &sem);
+*/
      if (mp) {
-        libvlc_media_player_play (mp);
+        if (libvlc_media_player_play (mp) == -1) {
+		printf("Can't play");
+		break;
+	}
      } else {
         printf("VLC failed %s\n", buf);
         break;
      }
+
+
+libvlc_media_parse (m);
+int s_length = (int)(ceil(libvlc_media_get_duration(m)/1000));
+printf("playing time %d\n", s_length);
+
+int t = sleep(s_length);
+
+//printf("woke from sleep\n");
+/*
+    vlc_sem_wait (&sem);
+*/
+
+/*
+
+    libvlc_event_detach(p_em, libvlc_MediaPlayerPlaying, finished_event, &sem);
+    libvlc_event_detach(p_em, libvlc_MediaPlayerEndReached, finished_event, &sem);
+    libvlc_event_detach(p_em, libvlc_MediaPlayerEncounteredError, finished_event, &sem);
+
+    libvlc_media_player_stop(p_mp);
+
+    vlc_sem_destroy (&sem);
+*/
+/*
+    libvlc_state_t state;
+    do {
+        state = libvlc_media_player_get_state (mp);
+    } while(state != libvlc_Playing &&
+            state != libvlc_Error &&
+            state != libvlc_Ended );
+
+    state = libvlc_media_player_get_state (mp);
+    assert(state == libvlc_Playing || state == libvlc_Ended);
+*/
+//		libvlc_event_attach (playerEventManager, libvlc_MediaPlayerEndReached,
+//				ListEventCallback, this);
+//sleep(10);
      libvlc_media_release (m);
  
-     p = p->more;
 
+if (t != 0) {
+	break;
+}
+     p = p->more;
 }
     
      /* Stop playing */
@@ -184,6 +241,7 @@ while (p) {
             exit(EXIT_SUCCESS);
         }
         default: {
+            printf("Play folder %s\n", folder);
         }   break;
     }
     return pid;
@@ -205,17 +263,25 @@ static void stop_vlc(int pid) {
 #endif // VLC
 
 static bool vlc_command(const char const *cmd, const char const *playlist) {
+printf("vlc_command %s %s\n", cmd, playlist);
 #if VLC
-    if (vlc_pid != -1) {
-        stop_vlc(vlc_pid);
-        vlc_pid = -1;
-    }
-
     if (strcmp(cmd, "/stop") == 0) {
+	    if (vlc_pid != -1) {
+        	stop_vlc(vlc_pid);
+	        vlc_pid = -1;
+	    }
+
         return true;
     }
 
+// stop even same playlist as it's easy way to skip to next song
+if (vlc_pid != -1) {
+       	stop_vlc(vlc_pid);
+        vlc_pid = -1;
+}
+
     vlc_pid = start_vlc(playlist);
+printf("started vlc %d\n", vlc_pid);
 /*
     int fd;
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
@@ -308,17 +374,22 @@ static bool cmd_load(int sock, const char const *msg) {
     
     playlists = get_dir(buf, false);
     if (!playlists) {
-        printf("No playlist.\n");
+        char *err = "No playlists. Create link to music.\n";
+	    if (send(sock, err, strlen(err), 0) != strlen(err)) {
+        	perror("send");
+	    }
         return true;
     }
 
     char playlist_buf[10*1024];
     int n = 0;
     playlist *p = playlists;
+    n += snprintf(playlist_buf + n, sizeof(playlist_buf), "Loaded playlists\n");
     while (p) {
         n += snprintf(playlist_buf + n, sizeof(playlist_buf), "%s\n", p->folder);
         p = p->more;
     }
+//printf("pl %s\n", playlist_buf);
     if (send(sock, playlist_buf, n, 0) != n) {
         perror("send");
     }
@@ -366,16 +437,17 @@ static bool cmd_play(int sock, const char const *msg) {
         }        
 
     } else {
-        if (playlists) {
-    playlist *p = playlists;
-    while (p) {
-        printf("%s\n", p->folder);
-        p = p->more;
-    }
-
+	if (vlc_pid == -1) {
+	   // vlc already playing
+	} else if (playlists) {
+/*	    playlist *p = playlists;
+	    while (p) {
+	        printf("%s\n", p->folder);
+	        p = p->more;
+	    }*/
             folder = playlists->folder;
         } else {
-            printf("No playlist. Create a link from %s to your music folder.\n", WEBBOX_LIB_PATH "/playlists/");
+            printf("No playlist. Create a link from %s to your music folder and give 'weston' rights.\n", WEBBOX_LIB_PATH "/playlists/");
             folder = NULL;
         }
     }
@@ -386,11 +458,12 @@ static bool cmd_play(int sock, const char const *msg) {
     }  
     
     const char ok[] = "VLC playing...";
-    const char nok[] = "Playlist failed!";
+    const char nok[] = "Play failed!";
     const char *response = success ? ok : nok;
-    if (send(sock, response, strlen(response), 0) != strlen(response)) {
+    if (write(sock, response, strlen(response)) != strlen(response)) {
         perror("send");
     }
+//flush(sock);
     return true;
 }
 

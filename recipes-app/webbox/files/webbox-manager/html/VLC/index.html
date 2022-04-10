@@ -89,9 +89,15 @@
                     if (this.readyState == 4 && this.status == 200) {
                         console.log(this.responseText);
                         if (command === 'load') {
+			    let status = true;
                             this.responseText.trim().split("\n").forEach((e) => {
-                                addButton(e).onclick = function () {
-                                    send_command("play/" + this.name);
+				if (status) {
+					status = false;
+					document.getElementById("webbox-response").innerHTML = e;
+				} else {
+	                                addButton(e).onclick = function () {
+        	                            send_command("play/" + this.name);
+					}
                                 }
                             });
                             document.getElementById("webbox-response").innerHTML =
@@ -102,7 +108,7 @@
                         }
                     } else {
                         document.getElementById("webbox-response").innerHTML =
-                                "Requesting...";
+                                "Requesting. " + this.responseText;
                     }
                 };
                 console.log("GET: " + command);

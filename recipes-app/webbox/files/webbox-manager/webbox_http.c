@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/poll.h>
+#include <sys/ioctl.h>
 #include<pthread.h> //for threading , link with lpthread
 
 #include "webbox_module.h"
@@ -47,7 +48,10 @@ static int http_listen(int port) {
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
         perror("setsockopt");
     }
-
+    int on = 1;
+    if (ioctl(sock, FIONBIO, (char *)&on) < 0) {
+        perror("FIONBIO");
+    }
     struct sockaddr_in addr_in;
     addr_in.sin_family = AF_INET;
     addr_in.sin_port = htons(port);
@@ -88,6 +92,7 @@ int http_command(int sock, const char* line) {
                     if (command->handle(sock, path + strlen(command->name))) {
                         break;
                     }
+                    //printf("http command: %s\n", command->name);
                     /*if (!command->handle(sock, path + strlen(command->name))) {
                         http_response(sock);
                     }*/
@@ -133,7 +138,7 @@ static bool process(int manager_socket) {
 
     // client is closed after response so actually polling always just for http_socket
     int nfds = 0;
-    struct pollfd poll_fds[1];
+    struct pollfd poll_fds[10];
     memset(poll_fds, 0 , sizeof(poll_fds));
 
     poll_fds[0].fd = http_socket;
@@ -141,21 +146,19 @@ static bool process(int manager_socket) {
     nfds++;
 
     while (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
-        int n = poll(poll_fds, nfds, -1);
-        //printf("http: poll %d\n", n);
-        if (n < 0) {
+printf("while poll\n");
+        int rc = poll(poll_fds, nfds, -1);
+        printf("http: poll %d\n", rc);
+        if (rc <= 0) {
           perror("poll");
           break;
         }
 
-        for (int i = 0; i < n; i++) { // loop active fd count
-            for (; i < n; i++) { // find next active fd
-                if(poll_fds[i].revents != 0) {
-                    break;
-                }
-            }
+        int n = nfds;
+        for (int i = 0; i < n; i++) {
+            if (poll_fds[i].revents == 0) continue;
 
-            if(poll_fds[i].revents != POLLIN) {
+            if (poll_fds[i].revents != POLLIN) {
                 printf("poll revents %d\n", poll_fds[i].revents);
                 break;
             }
@@ -174,13 +177,29 @@ static bool process(int manager_socket) {
                     sleep(1);
                     continue;
                 }*/
-
-                client_fd = http_accept(http_socket);
-                if (client_fd == -1) {
-                    perror("accept");
-                    continue;
+            do {
+                client_fd = accept(http_socket, NULL, NULL);
+printf("accepted %d\n", client_fd);
+                if (client_fd < 0) {
+                    if (errno != EWOULDBLOCK) {
+                        perror("accept");
+                    }
+                    break;
                 }
 
+    int on = 1;
+    if (ioctl(client_fd, FIONBIO, (char *)&on) < 0) {
+        perror("FIONBIO");
+    }
+
+                poll_fds[nfds].fd = client_fd;
+                poll_fds[nfds].events = POLLIN;
+                nfds++;
+
+
+            } while (client_fd);
+} else { 
+printf("client %d\n", poll_fds[i].fd );
         /*pthread_t thread_id;
         if( pthread_create( &thread_id , NULL ,  connection_handler , (void*) &client_fd) < 0)
         {
@@ -192,32 +211,68 @@ static bool process(int manager_socket) {
                 poll_fds[j].events = POLLIN;
                 nfds++;
                 */
+bool close_client = false;
+do {
+    // set unblocking always since not inherited and not persisting
+    int on = 1;
+    if (ioctl(poll_fds[i].fd, FIONBIO, (char *)&on) < 0) {
+        perror("FIONBIO");
+    }
 
                 char buf[1024];
-                int len = read(client_fd, buf, sizeof(buf)-1);
-                if (len < 0) {
-                    if (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
-                        perror("read client");
+printf("read\n");
+                int rc = read(poll_fds[i].fd, buf, sizeof(buf)-1);
+printf("read %d\n", rc);
+                if (rc < 0) {
+                    if (errno != EWOULDBLOCK) {
+                        close_client = true;
+                        perror("http read");
                     }
                     break;
                 }
-                if (len == 0) { // unexpected close
-                    continue;
+                if (rc == 0) { // client closed
+                    close_client = true;
+                    break;
                 }
 
-                buf[len] = '\0';
+                buf[rc] = '\0';
                 //printf("HTTP:\n%s\n", buf);
-                http_command(client_fd, buf);
-
-                close(client_fd);
-                client_fd = -1;
+                http_command(poll_fds[i].fd, buf);
+printf("http done\n");
+close_client = true;
+                //close(client_fd);
+                //client_fd = -1;
                 /*
                 poll_fds[j].fd = -1;
                 nfds--;
                 */
+} while (true);
+                if (close_client) {
+printf("close client %d\n", poll_fds[i].fd );
+shutdown(poll_fds[i].fd, SHUT_WR); //  need flush because client sleep blocks some IO
+                  close(poll_fds[i].fd);
+                  poll_fds[i].fd = -1;
+                }
+      for (int i = 0; i < nfds; i++)
+      {
+        if (poll_fds[i].fd == -1)
+        {
+          for(int j = i; j < nfds; j++)
+          {
+            poll_fds[j].fd = poll_fds[j+1].fd;
+          }
+          i--;
+          nfds--;
+        }
+      }
             }
         }
+printf("while end\n");
     }
+  for (int i = http_socket ? 0 : 1; i < nfds; i++) {
+    if(poll_fds[i].fd >= 0)
+      close(poll_fds[i].fd);
+  }
     return false;
 }
 
@@ -229,9 +284,10 @@ static void signal_handler(int sig_no) {
         }
     }
     close(http_socket);
-    if (client_fd != -1) {
+http_socket = -1;
+    /*if (client_fd != -1) {
         close(client_fd);
-    }
+    }*/
 }
 
 webbox_module webbox_http = {

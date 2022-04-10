@@ -12,7 +12,7 @@
 #include "webbox_module.h"
 
 static webbox_module *modules[] = {
-    &webbox_console,
+//    &webbox_console,
     &webbox_http,
 };
 
