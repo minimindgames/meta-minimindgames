@@ -3,24 +3,19 @@ cmake_minimum_required(VERSION 3.0)
 
 message("Building Webbox Manager")
 
-#set(VLC ${CMAKE_CROSSCOMPILING})
-set(VLC true)
-
-add_definitions(-DVLC=${VLC})
+# not reasonable to expect VLC start on every host
+add_definitions(-DVLC_EXEC=${CMAKE_CROSSCOMPILING})
 
 # lazy way to grap all sources
 file(GLOB SOURCES *.c)
 
 add_executable(WebboxManager ${SOURCES})
 
-if (VLC)
-#    add_definitions(-DVLC=true)
-    target_link_libraries(WebboxManager libvlc.so)
-endif()
+target_link_libraries(WebboxManager libvlc.so)
 
-target_link_libraries(WebboxManager pthread.so)
+#target_link_libraries(WebboxManager pthread.so)
 
-# just to simplify development
+# use local file on development host
 if (CMAKE_CROSSCOMPILING)
     add_definitions(-DWEBBOX_LIB_PATH="/usr/lib/webbox-manager")
 else()

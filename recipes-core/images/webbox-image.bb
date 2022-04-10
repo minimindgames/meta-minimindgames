@@ -23,3 +23,5 @@ CORE_IMAGE_EXTRA_INSTALL += "vlc"
 
 # systemd-firewalld
 CORE_IMAGE_EXTRA_INSTALL += "firewalld"
+
+CORE_IMAGE_EXTRA_INSTALL += "webbox-manager"

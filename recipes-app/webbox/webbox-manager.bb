@@ -21,4 +21,6 @@ do_install() {
     install -m 0755 WebboxManager ${D}${bindir}
     install -d ${D}${libdir}/webbox-manager
     cp -R ${S}/html ${D}${libdir}/webbox-manager
+	
+    ln -s /media/music ${D}${libdir}/webbox-manager/playlists
 }

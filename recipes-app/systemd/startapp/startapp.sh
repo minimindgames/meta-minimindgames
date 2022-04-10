@@ -13,4 +13,5 @@ sleep 1
 
 export DISPLAY=:0.0
 
-/usr/bin/chromium --start-fullscreen --start-maximized minimindgames.com/webbox/ &
+/usr/bin/WebboxManager & 
+#/usr/bin/chromium --start-fullscreen --start-maximized minimindgames.com/webbox/ &

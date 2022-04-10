@@ -17,6 +17,7 @@ static int client_fd = -1;
 
 // order reversed for canonical path
 static webbox_http_command *commands[] = {
+    &webbox_http_audio,
     &webbox_http_vlc,
     &webbox_http_power,
     //&webbox_http_img,
@@ -88,7 +89,7 @@ int http_command(int sock, const char* line) {
             for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
                 webbox_http_command *command = commands[i];
                 if (strncmp(path, command->name, strlen(command->name)) == 0) {
-                    //printf("http command: %s\n", command->name);
+                    printf("http command: %s\n", command->name);
                     if (command->handle(sock, path + strlen(command->name))) {
                         break;
                     }
@@ -110,11 +111,9 @@ static void *connection_handler(void *socket_desc) {
                     if (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
                         perror("read client");
                     }
-printf("len\n");
                     return 0;
                 }
                 if (len == 0) { // unexpected close
-printf("closed\n");
                     return 0;
                 }
 
@@ -146,9 +145,7 @@ static bool process(int manager_socket) {
     nfds++;
 
     while (fcntl(http_socket, F_GETFD) != -1 || errno != EBADF) {
-printf("while poll\n");
         int rc = poll(poll_fds, nfds, -1);
-        printf("http: poll %d\n", rc);
         if (rc <= 0) {
           perror("poll");
           break;
@@ -179,7 +176,6 @@ printf("while poll\n");
                 }*/
             do {
                 client_fd = accept(http_socket, NULL, NULL);
-printf("accepted %d\n", client_fd);
                 if (client_fd < 0) {
                     if (errno != EWOULDBLOCK) {
                         perror("accept");
@@ -199,7 +195,6 @@ printf("accepted %d\n", client_fd);
 
             } while (client_fd);
 } else { 
-printf("client %d\n", poll_fds[i].fd );
         /*pthread_t thread_id;
         if( pthread_create( &thread_id , NULL ,  connection_handler , (void*) &client_fd) < 0)
         {
@@ -220,9 +215,7 @@ do {
     }
 
                 char buf[1024];
-printf("read\n");
                 int rc = read(poll_fds[i].fd, buf, sizeof(buf)-1);
-printf("read %d\n", rc);
                 if (rc < 0) {
                     if (errno != EWOULDBLOCK) {
                         close_client = true;
@@ -238,7 +231,6 @@ printf("read %d\n", rc);
                 buf[rc] = '\0';
                 //printf("HTTP:\n%s\n", buf);
                 http_command(poll_fds[i].fd, buf);
-printf("http done\n");
 close_client = true;
                 //close(client_fd);
                 //client_fd = -1;
@@ -248,7 +240,6 @@ close_client = true;
                 */
 } while (true);
                 if (close_client) {
-printf("close client %d\n", poll_fds[i].fd );
 shutdown(poll_fds[i].fd, SHUT_WR); //  need flush because client sleep blocks some IO
                   close(poll_fds[i].fd);
                   poll_fds[i].fd = -1;
@@ -267,7 +258,6 @@ shutdown(poll_fds[i].fd, SHUT_WR); //  need flush because client sleep blocks so
       }
             }
         }
-printf("while end\n");
     }
   for (int i = http_socket ? 0 : 1; i < nfds; i++) {
     if(poll_fds[i].fd >= 0)

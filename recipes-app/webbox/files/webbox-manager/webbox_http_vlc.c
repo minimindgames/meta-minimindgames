@@ -5,18 +5,14 @@
 #include <math.h>
 #include <sys/un.h>
 #include <dirent.h> 
-#if VLC
 #include <sys/wait.h>
 #include <vlc/vlc.h>
-#endif
 
 #include "webbox_http.h"
 
 static const char vlc_socket_name[] = "/run/user/1000/vlc.sock";
 
 static int vlc_pid = -1;
-
-#if VLC
 
 typedef struct playlist {
     char *folder;
@@ -155,13 +151,14 @@ while (p) {
         fclose (file);
     }        
 
-#if !CMAKE_CROSSCOMPILING
-//    break;
+#if !VLC_EXEC
+    printf("Skip on host: libvlc exec.\n");
+    break;
 #endif
     //m = libvlc_media_new_location (inst, url);
      m = libvlc_media_new_path (inst, buf);
      if (!m) {
-        printf("VLC path failed %s\n", buf);
+        printf("VLC media %s\n", buf);
         break;
      }
 
@@ -181,12 +178,12 @@ while (p) {
 		break;
 	}
      } else {
-        printf("VLC failed %s\n", buf);
+        printf("VLC player %s\n", buf);
         break;
      }
 
 
-libvlc_media_parse (m);
+libvlc_media_parse (m); // need to call before libvlc_media_get_duration
 int s_length = (int)(ceil(libvlc_media_get_duration(m)/1000));
 printf("playing time %d\n", s_length);
 
@@ -260,11 +257,8 @@ static void stop_vlc(int pid) {
     printf("VLC stopped\n");
 }
 
-#endif // VLC
-
 static bool vlc_command(const char const *cmd, const char const *playlist) {
 printf("vlc_command %s %s\n", cmd, playlist);
-#if VLC
     if (strcmp(cmd, "/stop") == 0) {
 	    if (vlc_pid != -1) {
         	stop_vlc(vlc_pid);
@@ -305,7 +299,6 @@ printf("started vlc %d\n", vlc_pid);
         return false;
     }
     close(fd);*/
-#endif
     return vlc_pid != -1;
 }
 
@@ -482,11 +475,34 @@ printf("cmd_stop\n");
     return true;
 }
 
+static bool cmd_skip(int sock, const char const *msg) {
+    //const char cmd[] = "/stop";
+printf("cmd_skip\n");
+
+    const char *response;
+
+    if (vlc_pid == -1) {
+        response = "Nothing playing.";
+    } else {
+        if (1/*rename(oldname, newname) == 0*/) {
+            response = "Skip ok, file prefixed with '.'";
+        } else {
+            response = "Skip failed, check file permissions.";
+        }
+    }
+
+    if (send(sock, response, strlen(response), 0) != strlen(response)) {
+        perror("send");
+    }
+    return true;
+}
+
 static webbox_http_command commands[] = {
     { .name = "/load", .handle = cmd_load},
     //{ .name = "/playlist", .handle = cmd_playlist},
     { .name = "/play", .handle = cmd_play},
     { .name = "/stop", .handle = cmd_stop},
+    { .name = "/skip", .handle = cmd_skip},
 };
 
 static bool command(int sock, const char const *path) {

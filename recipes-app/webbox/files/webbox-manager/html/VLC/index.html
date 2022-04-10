@@ -26,8 +26,8 @@
                 grid-row-gap: 1em;
             }
 
-            .icon {
-                font-size: 24px;
+            button {
+                font-size: 48px;
                 padding: 0.5em;
                 overflow: hidden;
             }
@@ -73,6 +73,9 @@
             }
             addButton("stop").onclick = function () {
                 send_command('stop');
+            }
+            addButton("skip").onclick = function () {
+                send_command('skip');
             }
             /*addButton("play").onclick = function () {
              send_command(this.name);

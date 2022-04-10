@@ -22,3 +22,4 @@ extern webbox_http_command webbox_http_get;
 extern webbox_http_command webbox_http_img;
 extern webbox_http_command webbox_http_power;
 extern webbox_http_command webbox_http_vlc;
+extern webbox_http_command webbox_http_audio;

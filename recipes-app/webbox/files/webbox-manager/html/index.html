@@ -27,7 +27,7 @@
             }
 
             .icon {
-                font-size: 24px;
+                font-size: 48px;
                 padding: 0.5em;
                 overflow: hidden;
             }
@@ -102,6 +102,12 @@
                 }
                 addButton("VLC").onclick = function () {
                     window.location = this.name + '/';
+                }
+                addButton("Volume", "-5%").onclick = function () {
+                    send_command('/audio/volume/down');
+                }
+                addButton("Volume", "+5%").onclick = function () {
+                    send_command('/audio/volume/up');
                 }
                 document.getElementById("playlists").appendChild(nav);
             }
