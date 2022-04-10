@@ -437,8 +437,9 @@ static bool cmd_play(int sock, const char const *msg) {
         }        
 
     } else {
-	if (vlc_pid == -1) {
-	   // vlc already playing
+	if (vlc_pid != -1) {
+	   printf("vlc already playing\n");
+            folder = NULL;
 	} else if (playlists) {
 /*	    playlist *p = playlists;
 	    while (p) {
