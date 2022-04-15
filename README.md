@@ -588,13 +588,34 @@ Open another terminal on Webbox and start `python3`.
 
 It couldn't work any better and with unix-socket it's easy to integrate with whatsoever.
 
-But, there is always a but... VLC with `oldrc` simply denies to work for me when I try to start it from a script to background as a systemd-service.
+But, there is always a but... VLC with `oldrc` simply denies to work for me when I try to start it from a script to background as a systemd-service. End of story with "official" VLC remotes.
 
 ## VLC custom
 
 I have tried to use many of VLC remote control interfaces and they all suck. Let's code something better with https://wiki.videolan.org/LibVLC_Tutorial
 
+On development host you'll need libvlc, obviously.
+```
+$ sudo apt-get install libvlc-dev
+```
 
+VLC custom features:
+- UI control over HTTP and command line
+- Select to play a playlist not individual songs (UI simplified)
+- Recall the latest playlist and song (shuffle button not needed)
+- When started continue playing from the latest song (play button not needed)
+- Loop playlist on background indefinitely (repeat button not needed)
+- Let modify a playlist by removing just the currently playing song
+- Completely release audio when stop playing
+- Some audio controls like volume up/down
+
+You can find code in `webbox_http_vlc.c`. By default, it loads playlists from `/media/music`, so ount your music playlists there, e.g. from USB stick:
+```
+$ mkdir /media/music
+$ mount /media/music /dev/sdb1
+$ ls /media/music
+Classical/ Jazz/ Xmas/
+```
 
 ## Application development
 
@@ -713,6 +734,8 @@ python3 -m http.server
 I'm planning to use HTTP just to send commands to Webbox, such as to start a music playlist, and an HTTP server with CGI support could indeed run server side scripts on HTTP requests.
 
 However, I want more like full control over Webbox instead of full features http server, so I'm build HTTP server from scratch. You can find HTTP server code in "webbox_http.c" to get started with your experiments. It's a very simple HTTP server code that listens for client connections, hosts Webbox HTML based UI and handles incoming HTTP request.
+
+Webbox image starts HTTP server listening on port :80 so you can connect to it with any browser, or simply use address `localhost` on Webbox's browser.
 
 ## Firewall
 

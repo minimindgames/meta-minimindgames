@@ -110,7 +110,7 @@ static webbox_http_command commands[] = {
 static bool command(int sock, const char const *path) {
     for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
         if (strncmp(path, commands[i].name, strlen(commands[i].name)) == 0) {
-            printf("get command: %s\n", path);
+            printf("GET: %s\n", path);
             commands[i].handle(sock, path);
             break;
         }

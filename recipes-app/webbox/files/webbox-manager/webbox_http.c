@@ -89,7 +89,7 @@ int http_command(int sock, const char* line) {
             for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
                 webbox_http_command *command = commands[i];
                 if (strncmp(path, command->name, strlen(command->name)) == 0) {
-                    printf("http command: %s\n", command->name);
+                    //printf("http command: %s\n", command->name);
                     if (command->handle(sock, path + strlen(command->name))) {
                         break;
                     }
@@ -267,6 +267,7 @@ shutdown(poll_fds[i].fd, SHUT_WR); //  need flush because client sleep blocks so
 }
 
 static void signal_handler(int sig_no) {
+    printf("webbox_http signal_handler\n");
     for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
         webbox_http_command *command = commands[i];
         if (command->exit) {
