@@ -20,7 +20,7 @@ static webbox_http_command *commands[] = {
     &webbox_http_audio,
     &webbox_http_vlc,
     &webbox_http_power,
-    //&webbox_http_img,
+    &webbox_http_browser,
     &webbox_http_get,
 };
 
@@ -89,11 +89,10 @@ int http_command(int sock, const char* line) {
             for (int i=0; i<sizeof(commands)/sizeof(commands[0]); i++) {
                 webbox_http_command *command = commands[i];
                 if (strncmp(path, command->name, strlen(command->name)) == 0) {
-                    //printf("http command: %s\n", command->name);
+                    printf("CMD: %s\n", command->name);
                     if (command->handle(sock, path + strlen(command->name))) {
                         break;
                     }
-                    //printf("http command: %s\n", command->name);
                     /*if (!command->handle(sock, path + strlen(command->name))) {
                         http_response(sock);
                     }*/

@@ -25,6 +25,12 @@
                 grid-column-gap: 1em;
                 grid-row-gap: 1em;
             }
+            @media only screen and
+                (orientation: landscape) {
+                #nav {
+                    grid-template-columns: repeat(4, 1fr);
+                }
+            }            
 
             .icon {
                 font-size: 36px;
@@ -95,14 +101,20 @@
                 }
                 addButton("Chromium").onclick = function () {
                     //this._fullscreen.closeFullscreen();
-                    window.open("https://google.com/", '_blank').focus();
+                    //window.open("https://google.com/", '_blank').focus();
+                    send_command('/browser/start');
                 }
+/*
                 addButton("YouTube").onclick = function () {
-                    window.location = 'https://www.youtube.com/';
+                    window.open("https://www.youtube.com/", '_blank').focus();
                 }
                 addButton("Music", "YouTube Music").onclick = function () {
-                    window.location = 'https://music.youtube.com/';
+                    window.open("https://music.youtube.com/", '_blank').focus();
                 }
+                addButton("Volume", "Streams").onclick = function () {
+                    window.open("https://wiki.secondlife.com/wiki/Music_streams/", '_blank').focus();
+                }
+*/
                 addButton("VLC").onclick = function () {
                     window.location = this.name + '/';
                 }
@@ -111,6 +123,9 @@
                 }
                 addButton("Volume", "+5%").onclick = function () {
                     send_command('/audio/volume/up');
+                }
+                addButton("about", "Webbox").onclick = function () {
+                    window.open("https://github.com/minimindgames/meta-webbox/", '_blank').focus();
                 }
                 document.getElementById("playlists").appendChild(nav);
             }

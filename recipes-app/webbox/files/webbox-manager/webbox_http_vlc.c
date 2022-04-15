@@ -346,7 +346,7 @@ static bool cmd_load(int sock, const char const *msg) {
 static bool cmd_play(int sock, const char const *msg) {
     const char cmd[] = "play";
 
-    const char *folder = strdup(msg + sizeof(cmd));
+    char *folder = strdup(msg + sizeof(cmd));
     if (folder[0] != 0) {
         char *filename = get_path("", LATEST_FILENAME);
         FILE *file = fopen (filename, "wt");
