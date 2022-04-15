@@ -9,8 +9,9 @@ IMAGE_FEATURES += "splash package-management ssh-server-dropbear hwcodecs weston
 # Chromium browser
 CORE_IMAGE_EXTRA_INSTALL += "chromium-ozone-wayland"
 
-# Start-up app by systemd
-CORE_IMAGE_EXTRA_INSTALL += "startapp"
+# Let systemd start WebbboxManager as service
+CORE_IMAGE_EXTRA_INSTALL += "start-webbox"
+CORE_IMAGE_EXTRA_INSTALL += "start-browser"
 
 # Audio over HDMI
 CORE_IMAGE_EXTRA_INSTALL += "pulseaudio pulseaudio-server"

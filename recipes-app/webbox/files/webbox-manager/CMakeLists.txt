@@ -4,7 +4,9 @@ cmake_minimum_required(VERSION 3.0)
 message("Building Webbox Manager")
 
 # not reasonable to expect VLC start on every host
-add_definitions(-DVLC_EXEC=${CMAKE_CROSSCOMPILING})
+if (CMAKE_CROSSCOMPILING)
+    add_definitions(-DVLC_EXEC=1)
+endif()
 
 # lazy way to grap all sources
 file(GLOB SOURCES *.c)

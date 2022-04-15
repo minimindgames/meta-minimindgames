@@ -10,12 +10,14 @@ static bool cmd_volume(int sock, const char const *msg) {
 
     msg++; // skip '/'
     if (strcmp(msg, "down") == 0) {
-        vol = "-5%";
+        vol = "-";
     } else {
-        vol = "+5%";
+        vol = "+";
     }
 
-    snprintf(buf, sizeof(buf), "/usr/bin/pactl set-sink-volume @DEFAULT_SINK@ %s", vol);
+//    snprintf(buf, sizeof(buf), "/usr/bin/pactl set-sink-volume @DEFAULT_SINK@ %s", vol);
+//    snprintf(buf, sizeof(buf), "/usr/bin/amixer -c0 set PCM 5%%%s", vol);
+    snprintf(buf, sizeof(buf), "/usr/bin/amixer -c0 set Master 5%%%s", vol);
 #if VLC_EXEC
     if (system(buf) != 0) {
         const char response_failed[] = "Volume failed.";

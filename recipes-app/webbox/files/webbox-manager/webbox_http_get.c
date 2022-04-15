@@ -7,7 +7,7 @@ static bool command_get(int socket, const char const *path) {
     char buf[80];
     int len = snprintf(buf, sizeof(buf), WEBBOX_LIB_PATH "/html/%sindex.html", path);
     if (len > sizeof(buf)) {
-        buf[sizeof(buf)] = '\0';
+        buf[sizeof(buf)-1] = '\0';
         printf("Get path overflow: %s (%d)\n", buf, len);
         return true;
     }
@@ -38,7 +38,7 @@ static bool command_get(int socket, const char const *path) {
             if (fseek (file, 0, SEEK_SET) == 0) {
                 char *buffer = (char*)malloc (length);
                 if (buffer) {
-                    fread (buffer, 1, length, file);
+                    (void)fread (buffer, 1, length, file);
                     buffer[length - 1] = '\0';
                     if (buffer) {
                         if (send(socket, buffer, length, 0) != length) {
@@ -63,7 +63,7 @@ static bool command_image(int socket, const char const *path) {
     char buf[80];
     int len = snprintf(buf, sizeof(buf), WEBBOX_LIB_PATH "/html/%s", path);
     if (len > sizeof(buf)) {
-        buf[sizeof(buf)] = '\0';
+        buf[sizeof(buf)-1] = '\0';
         printf("Get path overflow: %s (%d)\n", buf, len);
         return true;
     }
@@ -78,7 +78,7 @@ static bool command_image(int socket, const char const *path) {
             if (fseek (file, 0, SEEK_SET) == 0) {
                 char *buffer = (char*)malloc (length);
                 if (buffer) {
-                    fread (buffer, 1, length, file);
+                    (void)fread (buffer, 1, length, file);
                     buffer[length - 1] = '\0';
                     if (buffer) {
                         http_line(socket, "HTTP/1.1 200 OK\r\n");

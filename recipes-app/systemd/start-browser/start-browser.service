@@ -1,13 +1,15 @@
 [Unit]
-Description=Start chromium at boot
+Description=Start browser
 After=weston
 Requires=weston
  
 [Service]
-Restart=always # on-failure
+Restart=on-failure
 Type=forking
-ExecStart=/usr/bin/startapp.sh
+ExecStart=/usr/bin/start-browser.sh
 RestartSec=3
+User=1000
+Group=1000
  
 [Install]
 WantedBy=multi-user.target

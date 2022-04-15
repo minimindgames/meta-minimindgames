@@ -251,7 +251,7 @@ static int start_vlc(const char const *folder) {
                     free(filename);
                     continue;
                 }
-#if !VLC_EXEC
+#ifndef VLC_EXEC
                 printf(LOG_NAME "No audio play on host %s.\n", filename);
                 free(filename);
                 playlist_clear(files);
