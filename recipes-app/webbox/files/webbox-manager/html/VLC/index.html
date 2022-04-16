@@ -109,6 +109,9 @@
                             });
                             document.getElementById("webbox-response").innerHTML =
                                     'Playlists loaded.';
+                        } else if (command.startsWith('play')) {
+                            document.getElementById("webbox-response").innerHTML =
+                                    "Playing... " + this.responseText.substring(1);
                         } else {
                             document.getElementById("webbox-response").innerHTML =
                                     this.responseText;

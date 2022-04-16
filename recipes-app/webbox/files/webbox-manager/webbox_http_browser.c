@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <math.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <dirent.h> 
 #include <sys/wait.h>
@@ -24,7 +25,18 @@ static int start_browser() {
             // child process is run as "weston"
             setuid(1000);
             setgid(1000);
-            putenv("HOME=/home/weston");
+            {
+                struct stat st = {0};
+                char *home = "/home/weston/.chromium";
+                if (stat(home, &st) == -1) {
+                    mkdir(home, 0700);
+                }
+                char env[sizeof("HOME=") + strlen(home) + 1];
+                sprintf(env, "HOME=%s", home);
+                putenv(env);
+                putenv("DISPLAY=:0.0");
+                putenv("XDG_RUNTIME_DIR=/run/user/1000");
+            }
 #ifndef VLC_EXEC
             printf(LOG_NAME "Browser not started on host %s.\n", filename);
             exit(EXIT_SUCCESS);
@@ -55,9 +67,9 @@ static bool stop_browser(int pid) {
 }
 
 static bool cmd_start(int sock, const char const *msg) {
-    if (pid == -1) {
+//    if (pid == -1) {
         pid = start_browser();
-    }
+//    }
 
     const char *response = (pid != -1) ? "Browser started..." : "Browser failed!";
     if (write(sock, response, strlen(response)) != strlen(response)) {

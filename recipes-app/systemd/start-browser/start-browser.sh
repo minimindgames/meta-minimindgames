@@ -13,4 +13,4 @@ sleep 1
 
 export DISPLAY=:0.0
 
-/usr/bin/chromium localhost --start-fullscreen &
+/usr/bin/chromium localhost --start-maximized &

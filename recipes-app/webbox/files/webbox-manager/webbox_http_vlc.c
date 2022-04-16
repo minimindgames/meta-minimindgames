@@ -346,6 +346,7 @@ static bool cmd_load(int sock, const char const *msg) {
 static bool cmd_play(int sock, const char const *msg) {
     const char cmd[] = "play";
 
+    const char *response = NULL;
     char *folder = strdup(msg + sizeof(cmd));
     if (folder[0] != 0) {
         char *filename = get_path("", LATEST_FILENAME);
@@ -354,16 +355,19 @@ static bool cmd_play(int sock, const char const *msg) {
         if (file) {
             fprintf(file, "%s", folder);
             fclose (file);
-        }        
+        }
+        response = folder;
     } else {
 	if (vlc_pid != -1) {
             printf(LOG_NAME "Already playing\n");
+            response = folder;
             folder = NULL;
 	} else {
             playlist *playlists = get_dir(NULL, "", false);
             playlist *p = get_latest(playlists, "");
             if (p) {
                 folder = strdup(p->folder);
+                response = folder;
             } else {
                 printf("No playlists. Link %s to your music folders where 'weston' has access rights.\n", PLAYLIST_PATH);
                 folder = NULL;
@@ -378,9 +382,10 @@ static bool cmd_play(int sock, const char const *msg) {
         }
         vlc_pid = start_vlc(folder);
     }
-    
-    const char nok[] = "Play failed!";
-    const char *response = (vlc_pid != -1) ? folder ? folder : "Playing..." : nok;
+
+    if (!response) {
+        response = "Failed!";
+    }
     if (write(sock, response, strlen(response)) != strlen(response)) {
         perror("send");
     }
