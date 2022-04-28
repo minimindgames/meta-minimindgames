@@ -15,7 +15,8 @@ static const char vlc_socket_name[] = "/run/user/1000/vlc.sock";
 #define LOG_NAME "VLC: "
 
 #define PLAYLIST_PATH WEBBOX_LIB_PATH "/playlists"
-#define LATEST_FILENAME "/.vlc_latest.cfg"
+#define LATEST_FILENAME "/vlc_latest.cfg"
+#define PLAYLIST_SKIP "/home/weston/.webbox/playlists.skip"
 
 static int vlc_pid = -1;
 
@@ -95,7 +96,7 @@ static void write_file(const char* const filename, const char* const contents) {
     if (file) {
         int length = strlen(contents);
         if (fwrite(contents, 1, length, file) == length) {
-            printf(LOG_NAME "Write %s=%s\n", filename, contents);
+            printf(LOG_NAME "Write %s: %s\n", filename, contents);
         } else {
             printf(LOG_NAME "Write file failed %s: %s\n", filename, contents);
         }
@@ -240,21 +241,47 @@ static int start_vlc(const char const *folder) {
             }*/
 
             playlist *p = get_latest(files, folder);
+            char *fskiplist = read_file(PLAYLIST_SKIP);
+            if (p->more) { // do not continue always from the first one
+                p = p->more;
+            } else {
+                p = files;
+            }
             while (p) { // loop playlist
-                char *latest = get_path(folder, LATEST_FILENAME);
-                write_file(latest, p->folder);
-                free(latest);
-
                 char *filename = get_path("", p->folder);
                 if (access(filename, F_OK ) != 0) {
                     printf("Check file read permission %s\n", filename);
                     free(filename);
+                    p = p->more;
                     continue;
                 }
+
+                if (fskiplist) {
+                    char *line = strtok(fskiplist, "\n");
+                    bool skip = false;
+                    while(line) {
+                        if (strcmp(line, filename) == 0) {
+                            skip = true;
+                            break;
+                        }
+                        line = strtok(NULL, "\n");
+                    }
+                    if (skip) {
+                        printf("Skip %s\n", filename);
+                        p = p->more;
+                        continue;
+                    }
+                }
+
+                char *latest = get_path(folder, LATEST_FILENAME);
+                write_file(latest, p->folder);
+                free(latest);
+
 #ifndef VLC_EXEC
                 printf(LOG_NAME "No audio play on host %s.\n", filename);
                 free(filename);
                 playlist_clear(files);
+                free(fskiplist);
                 exit(EXIT_SUCCESS);
 #endif
 
@@ -287,12 +314,17 @@ static int start_vlc(const char const *folder) {
 
                 libvlc_media_release (m);
 
-                p = p->more;
+                if (p->more) { // loop forever
+                    p = p->more;
+                } else {
+                    p = files;
+                }
             }
     
             libvlc_media_player_stop (mp);
             libvlc_media_player_release (mp);
             libvlc_release (inst);
+            free(fskiplist);
             exit(EXIT_SUCCESS);
         default:
             printf(LOG_NAME "Playlist %s (pid=%d)\n", folder, pid);
@@ -428,16 +460,28 @@ static bool cmd_skip(int sock, const char const *msg) {
                 if (latest) {
                     char *fskip = get_path("", latest);
                     if (fskip) {
-                        printf(LOG_NAME "Skip file %s\n", fskip );
                         if (access(fskip , F_OK ) == 0) {
-                            char *fhidden = malloc(strlen(fskip) + strlen(".skip") + 1);
-                            (void)sprintf(fhidden, "%s.skip", fskip);
-                            if (rename(fskip , fhidden) == 0) {
-                                response = "Skipped, file renamed with '.skip'";
-                            } else {
-                                perror("rename");
+                            FILE *file = fopen(PLAYLIST_SKIP, "at");
+                            if (file) {
+                                int length = strlen(fskip);
+                                if (fwrite(fskip, 1, length, file) == length) {
+                                    if (fwrite("\n", 1, 1, file) == 1) {
+                                        printf(LOG_NAME "Skip %s: %s\n", PLAYLIST_SKIP, fskip);
+                                        response = "Skipped";
+                                    } else {
+                                        printf(LOG_NAME "Skip failed %s\n", PLAYLIST_SKIP);
+                                    }
+                                } else {
+                                    printf(LOG_NAME "Skip failed %s\n", PLAYLIST_SKIP);
+                                }
+                                fclose(file);
+                                if (response) {
+                                    if (vlc_pid != -1) {
+                                        stop_vlc(vlc_pid);
+                                    }
+                                    vlc_pid = start_vlc(p->folder);
+                                }
                             }
-                            free(fhidden);
                         } else {
                             perror("access");
                         }
@@ -477,46 +521,13 @@ static bool command(int sock, const char const *path) {
     }
     return false;
 }
-/*
-static void command_init(void) {
-    if (1) return;
-    char buf[80];
-    int len = snprintf(buf, sizeof(buf), WEBBOX_LIB_PATH "/playlists");
-    if (len > sizeof(buf)) {
-        buf[sizeof(buf)] = '\0';
-        printf("VLC path: %s (%d)\n", buf, len);
-        return;
-    }
 
-
-    DIR *d;
-    struct dirent *dir;
-    d = opendir(buf);
-    if (d) {
-      while ((dir = readdir(d)) != NULL) {
-        if (dir->d_name[0] != '.') {
-            printf("%s\n", dir->d_name);
-        }
-      }
-      closedir(d);
-    }
-}
-*/
 static void command_exit(void) {
     printf("command_exit\n");
-    /*playlist *p = playlists;
-    while (p) {
-        printf("remove %s\n", p->folder);
-        free(p->folder);
-        playlist *current = p;
-        p = p->more;
-        free(current);
-    }*/
 }
 
 webbox_http_command webbox_http_vlc = {
     .name = "/VLC",
-//    .init = command_init,
     .handle = command,
     .exit = command_exit,
 };

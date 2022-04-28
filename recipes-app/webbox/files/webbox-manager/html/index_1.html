@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Webbox</title>
+        <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+        <style>
+            * {
+                box-sizing : border-box;
+                padding: 0;
+                margin: 0;
+            }
+
+            #nav {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 768px;
+                height: 768px;
+                max-width: 100%;
+                max-height: 100%;
+                display: inline-grid;
+                grid-template-columns: repeat(3, 1fr);
+                grid-column-gap: 1em;
+                grid-row-gap: 1em;
+            }
+            @media only screen and
+                (orientation: landscape) {
+                #nav {
+                    grid-template-columns: repeat(4, 1fr);
+                }
+            }            
+
+            .icon {
+                font-size: 36px;
+                padding: 0.5em;
+                overflow: hidden;
+            }
+
+            .icon img {
+                max-width: 80%;
+                max-height: 80%;
+            }
+
+            .page {
+                display: none;
+                position: fixed;
+                z-index: 999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: #fff;
+            }
+            #webbox-response {
+                font-size: 36px;
+            }
+        </style>
+    </head>
+    <body>
+        <!--        <h1>Webbox - DIY project for web browsing, streaming and gaming</h1>
+                <p>
+                    Webbox is a do-it-yourself project to build a lightweight and fully customisable Internet appliance for web browsing, streaming and gaming on Yocto/Linux compatible devices, such as Intel NUC and Raspberrypi.
+                </p>-->
+        <div id="playlists">
+        </div>
+
+        <div id="webbox-response">Webbox...</div>
+        <!--<img src="img/icon-clock.png" />
+        <img src="img/icon-power.png" />
+        <img src="img/icon-VLC.png" />
+        <img src="img/icon-YouTube.png" />
+        <img src="img/icon-Chromium.png" />-->
+        <script>
+            const nav = document.createElement("div");
+            function addButton(id, name) {
+                let button = document.createElement("button");
+                button.name = id;
+                //button.innerHTML = '<img src="img/icon-' + id + '.png" /><div style="margin-top: 1em;">' + (name ? name : id) + '</div>';
+                const image = document.createElement("img")
+                image.src = src = "img/icon-" + id + ".png";
+                button.appendChild(image);
+                const div = document.createElement("div");
+                button.appendChild(div);
+                const text = document.createTextNode(name ? name : id);
+                div.appendChild(text);
+                button.classList.add("icon");
+                nav.appendChild(button);
+                return button;
+            }
+            nav.id = 'nav';
+            window.onload = function () {
+                addButton("power").onclick = function () {
+                    //window.location = this.name + '/suspend/';
+                    send_command(this.name + '/suspend/');
+                }
+                addButton("clock").onclick = function () {
+                    window.location = this.name + '/';
+                }
+                addButton("Chromium").onclick = function () {
+                    //this._fullscreen.closeFullscreen();
+                    //window.open("https://google.com/", '_blank').focus();
+                    send_command('/browser/start');
+                }
+/*
+                addButton("YouTube").onclick = function () {
+                    window.open("https://www.youtube.com/", '_blank').focus();
+                }
+                addButton("Music", "YouTube Music").onclick = function () {
+                    window.open("https://music.youtube.com/", '_blank').focus();
+                }
+                addButton("Volume", "Streams").onclick = function () {
+                    window.open("https://wiki.secondlife.com/wiki/Music_streams/", '_blank').focus();
+                }
+*/
+                addButton("VLC").onclick = function () {
+                    window.location = this.name + '/';
+                }
+                addButton("Volume", "-5%").onclick = function () {
+                    send_command('/audio/volume/down');
+                }
+                addButton("Volume", "+5%").onclick = function () {
+                    send_command('/audio/volume/up');
+                }
+                addButton("about", "Webbox").onclick = function () {
+                    window.open("https://github.com/minimindgames/meta-webbox/", '_blank').focus();
+                }
+                document.getElementById("playlists").appendChild(nav);
+            }
+            /*
+             addButton("game").onclick = function () {
+             window.location = this.name + '/';
+             }
+             addButton("touchpad").onclick = function () {
+             window.location = this.name + '/';
+             }
+             addButton("device").onclick = function () {
+             window.location = this.name + '/';
+             }*/
+            /*addButton("about").onclick = function () {
+             window.location = this.name + '/';
+             }*/
+        </script>
+
+        <script>
+            function send_command(command) {
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        console.log(this.responseText);
+                        document.getElementById("webbox-response").innerHTML =
+                                this.responseText;
+                    } else {
+                        document.getElementById("webbox-response").innerHTML =
+                                "Requesting...";
+                    }
+                };
+                xhttp.open("GET", command, true);
+                xhttp.send();
+            }
+        </script>
+
+        <script>
+            var elem = document.documentElement;
+            function openFullscreen() {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE11 */
+                    elem.msRequestFullscreen();
+                }
+            }
+
+            function closeFullscreen() {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { /* Safari */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE11 */
+                    document.msExitFullscreen();
+                }
+            }
+        </script>
+
+    </body>
+</html>

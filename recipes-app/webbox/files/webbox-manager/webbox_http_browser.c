@@ -38,7 +38,7 @@ static int start_browser() {
                 putenv("XDG_RUNTIME_DIR=/run/user/1000");
             }
 #ifndef VLC_EXEC
-            printf(LOG_NAME "Browser not started on host %s.\n", filename);
+            printf(LOG_NAME "Browser not started on host.\n");
             exit(EXIT_SUCCESS);
 #endif
             if (execl("/usr/bin/chromium", "chromium", "--start-maximized", NULL) == -1) {

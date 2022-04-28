@@ -12,9 +12,13 @@ do
 		if [ ! -e "/usr/lib/webbox-manager/playlists" ]; then
 			ln -s $DIR "/usr/lib/webbox-manager/playlists"
 		fi
-		mount $DEV $DIR
+		if grep -qs $DIR /proc/mounts; then
+			echo "Webbox playlists mounted at ${DIR}"
+			mount $DEV $DIR
+		fi
 		break
 	fi
 done
 
+mkdir -m 777 -p $HOME/.webbox
 /usr/bin/WebboxManager &
