@@ -7,25 +7,25 @@
 #include <dirent.h> 
 #include <sys/wait.h>
 #include <vlc/vlc.h>
+#include <vlc/libvlc_media_player.h>
 
 #include "webbox_http.h"
 
-static const char vlc_socket_name[] = "/run/user/1000/vlc.sock";
-
 #define LOG_NAME "VLC: "
 
-#define PLAYLIST_PATH WEBBOX_LIB_PATH "/playlists"
-#define LATEST_FILENAME "/vlc_latest.cfg"
-#define PLAYLIST_SKIP "/home/weston/.webbox/playlists.skip"
+#define CONFIG_PATH "/home/weston/.webbox"
+#define PLAYLIST_SKIP CONFIG_PATH "/playlists.skip"
+#define PLAYLIST_LATEST CONFIG_PATH "/playlists.latest"
 
+#define PLAYLIST_PATH WEBBOX_LIB_PATH "/playlists"
+
+// Only one VLC instance is running at time and looping a playlist
 static int vlc_pid = -1;
 
 typedef struct playlist {
     char *folder;
     struct playlist *more;
 } playlist;
-
-//static playlist *playlists;
 
 static void playlist_clear(playlist *p) {
     while (p) {
@@ -89,6 +89,16 @@ out:
     return contents;
 }
 
+static void file_write_line(FILE *file, const char* const line) {
+    int length = strlen(line);
+    if (fwrite(line, 1, length, file) != length) {
+        printf(LOG_NAME "Write line failed %s\n", line);
+    }
+    if (fwrite("\n", 1, 1, file) != 1) {
+        printf(LOG_NAME "Write line failed\n");
+    }
+}
+
 static void write_file(const char* const filename, const char* const contents) {
     FILE *file = NULL;
 
@@ -98,7 +108,7 @@ static void write_file(const char* const filename, const char* const contents) {
         if (fwrite(contents, 1, length, file) == length) {
             printf(LOG_NAME "Write %s: %s\n", filename, contents);
         } else {
-            printf(LOG_NAME "Write file failed %s: %s\n", filename, contents);
+            printf(LOG_NAME "Write failed %s: %s\n", filename, contents);
         }
         fclose(file);
     }
@@ -138,7 +148,7 @@ playlist *get_dir(playlist *playlists, const char* const folder, bool recurse) {
     }
 
     struct dirent **namelist;
-    printf("get_dir: %s\n", filename);
+    //printf("get_dir: %s\n", filename);
     int n = scandir(filename, &namelist, (recurse) ? file_filter : dir_filter, alphasort);
     if (n < 0) {
         perror("scandir");
@@ -162,9 +172,9 @@ playlist *get_dir(playlist *playlists, const char* const folder, bool recurse) {
         }
 
         playlist *p = (playlist *)malloc(sizeof(playlist));
-        p->folder = malloc(strlen(folder) + 1 + strlen(namelist[i]->d_name) + 1);
-        (void)sprintf(p->folder, "%s/%s", folder, namelist[i]->d_name);
-
+        p->folder = malloc(strlen(filename) + 1 + strlen(namelist[i]->d_name) + 1);
+        (void)sprintf(p->folder, "%s/%s", filename, namelist[i]->d_name);
+        //printf("file %s\n", p->folder);
         free(namelist[i]);
 
         if (last) {
@@ -186,36 +196,75 @@ out:
     return playlists;
 }
 
-playlist *get_latest(playlist *list, const char* const folder) {
+playlist *latest_get(playlist *list, const char* const pl) {
     if (!list) {
         return NULL;
     }
     
-    char *filename = get_path(folder, LATEST_FILENAME);
-    char *latest = read_file(filename);
-    free(filename);
+    char *latests = read_file(PLAYLIST_LATEST);
+    if (!latests) {
+        return list;
+    }
+
+    // Find latest for this playlist
+    char *latest = strtok(latests, "\n");
+    while(latest) {
+        if (strncmp(latest, pl, strlen(pl)) == 0) {
+            break;
+        }
+        latest = strtok(NULL, "\n");
+    }
+
     if (!latest) {
+        free(latests);
         return list;
     }
 
     playlist *p = list;
     while (p) {
-        if (strcmp(latest, p->folder) == 0) {
+        if (strcmp(p->folder, latest) == 0) {
             break;
         }
         p = p->more;
     }
-    free(latest);
+    free(latests);
 
     if (!p) {
         return list;
     }
 
+    //printf("latest %s\n", p->folder);
     return p;
 }
 
-static int start_vlc(const char const *folder) {
+// folder needed to remove existing entries
+void latest_write(const char* const folder, const char* const filename) {
+    printf("latest_write %s\n", filename);
+    char *latests = read_file(PLAYLIST_LATEST);
+    FILE *file = fopen(PLAYLIST_LATEST, "wt");
+    if (file) {
+        //char *fname = get_path("", filename); // filename has also folder
+        file_write_line(file, filename);
+        //free(fname);
+        if (latests) {
+            char *remove = get_path(folder, "");
+            char *latest = strtok(latests, "\n");
+            while(latest) {
+                if (strncmp(remove, latest, strlen(remove)) != 0) {
+                    file_write_line(file, latest);
+                }
+                latest = strtok(NULL, "\n");
+            }
+            free(remove);
+            free(latests);
+        }
+        fclose(file);
+    }
+}
+
+static int start_vlc(const char const *start_folder) {
     int pid = fork();
+    char *folder = strdup(start_folder);
     switch (pid) {
         case -1:
             perror("VLC");
@@ -233,25 +282,23 @@ static int start_vlc(const char const *folder) {
             libvlc_media_player_t *mp;
             playlist *files = get_dir(NULL, folder, true);
 
-            /*printf("Playlist files:\n");
-            playlist *debug = files;
-            while (debug) {
-                printf("%s\n", debug->folder);
-                debug = debug->more;
-            }*/
+            // in the future audio files may come from many drives so prefer full paths
+            char *pf = get_path("", folder);
+            playlist *p = latest_get(files, pf);
+            free(pf);
 
-            playlist *p = get_latest(files, folder);
             char *fskiplist = read_file(PLAYLIST_SKIP);
-            if (p->more) { // do not continue always from the first one
+
+            if (p->more) { // Skip the latest (also skips the first one)
                 p = p->more;
             } else {
                 p = files;
             }
+
             while (p) { // loop playlist
-                char *filename = get_path("", p->folder);
+                char *filename = p->folder;
                 if (access(filename, F_OK ) != 0) {
                     printf("Check file read permission %s\n", filename);
-                    free(filename);
                     p = p->more;
                     continue;
                 }
@@ -273,15 +320,14 @@ static int start_vlc(const char const *folder) {
                     }
                 }
 
-                char *latest = get_path(folder, LATEST_FILENAME);
-                write_file(latest, p->folder);
-                free(latest);
+                latest_write(folder, p->folder);
 
 #ifndef VLC_EXEC
                 printf(LOG_NAME "No audio play on host %s.\n", filename);
-                free(filename);
+                //free(filename);
                 playlist_clear(files);
                 free(fskiplist);
+                free(folder);
                 exit(EXIT_SUCCESS);
 #endif
 
@@ -301,7 +347,7 @@ static int start_vlc(const char const *folder) {
                         exit(EXIT_FAILURE);
                    }
                 }
-
+printf("time %d\n", (int)(ceil(libvlc_media_get_length(m)/1000)));
                 libvlc_media_parse (m); // need to call before libvlc_media_get_duration
                 int seconds = (int)(ceil(libvlc_media_get_duration(m)/1000));
                 printf(LOG_NAME "Media time %d\n", seconds);
@@ -325,9 +371,11 @@ static int start_vlc(const char const *folder) {
             libvlc_media_player_release (mp);
             libvlc_release (inst);
             free(fskiplist);
+            free(folder);
             exit(EXIT_SUCCESS);
         default:
             printf(LOG_NAME "Playlist %s (pid=%d)\n", folder, pid);
+            free(folder);
             break;
     }
     return pid;
@@ -356,8 +404,11 @@ static bool cmd_load(int sock, const char const *msg) {
         if (write(sock, response , strlen(response )) != strlen(response)) {
             perror("send");
         }
+        char *path = get_path("", "");
+        int pathlen = strlen(path) + 1; // +1 for slash
+        free(path);
         while (p) {
-            if (write(sock, p->folder+1, strlen(p->folder)-1) != strlen(p->folder)-1) {
+            if (write(sock, p->folder + pathlen, strlen(p->folder) - pathlen) != strlen(p->folder) - pathlen) {
                 perror("send");
             }
             if (write(sock, "\n", strlen("\n")) != strlen("\n")) { // separated by newlines
@@ -379,32 +430,18 @@ static bool cmd_play(int sock, const char const *msg) {
     const char cmd[] = "play";
 
     const char *response = NULL;
-    char *folder = strdup(msg + sizeof(cmd));
-    if (folder[0] != 0) {
-        char *filename = get_path("", LATEST_FILENAME);
-        FILE *file = fopen (filename, "wt");
-        free(filename);
-        if (file) {
-            fprintf(file, "%s", folder);
-            fclose (file);
-        }
+    const char const *folder = NULL;
+    if (msg + sizeof(cmd) != 0) {
+        folder = msg + sizeof(cmd);
         response = folder;
     } else {
 	if (vlc_pid != -1) {
             printf(LOG_NAME "Already playing\n");
-            response = folder;
+            response = "Playing";
             folder = NULL;
 	} else {
-            playlist *playlists = get_dir(NULL, "", false);
-            playlist *p = get_latest(playlists, "");
-            if (p) {
-                folder = strdup(p->folder);
-                response = folder;
-            } else {
-                printf("No playlists. Link %s to your music folders where 'weston' has access rights.\n", PLAYLIST_PATH);
-                folder = NULL;
-            }
-            playlist_clear(playlists);
+            folder = NULL;
+            response = "Select playlist";
         }
     }
 
@@ -421,7 +458,6 @@ static bool cmd_play(int sock, const char const *msg) {
     if (write(sock, response, strlen(response)) != strlen(response)) {
         perror("send");
     }
-    free(folder);
 
     return vlc_pid != -1;
 }
@@ -431,7 +467,7 @@ static bool cmd_stop(int sock, const char const *msg) {
     if (vlc_pid != -1) {
         if (!stop_vlc(vlc_pid)) {
             success = false;
-            // should restart all
+            // should probably restart webbox-manager
         }
         vlc_pid = -1;
     }
@@ -450,17 +486,24 @@ static bool cmd_skip(int sock, const char const *msg) {
     if (vlc_pid == -1) {
         response = "Nothing playing.";
     } else {
-        playlist *playlists = get_dir(NULL, "", false);
-        playlist *p = get_latest(playlists, "");
-        if (p) {
-            char *filename = get_path(p->folder, LATEST_FILENAME);
-            if (filename) {
-                char *latest = read_file(filename);
-                free(filename);
+        /*char *pf = get_path("", "", false);
+        playlist *p = latest_get(playlists, pf);
+        free(pf);*/
+        //playlist *playlists = get_dir(NULL, "", false);
+        //playlist *p = latest_get(playlists, "");
+        char *latests = read_file(PLAYLIST_LATEST);
+        if (latests) {
+            char *latest = strtok(latests, "\n");
+            char *filename = NULL; //get_path(p->folder, LATEST_FILENAME);
+            if (latests) {
+                char *latest = strtok(latests, "\n");
+printf("latest2 %s\n", latest);
+                //free(filename);
                 if (latest) {
-                    char *fskip = get_path("", latest);
+                    char *fskip = latest; //get_path("", latest);
                     if (fskip) {
-                        if (access(fskip , F_OK ) == 0) {
+printf("fskip %s\n", fskip);
+                        if (access(fskip, F_OK ) == 0) {
                             FILE *file = fopen(PLAYLIST_SKIP, "at");
                             if (file) {
                                 int length = strlen(fskip);
@@ -479,19 +522,20 @@ static bool cmd_skip(int sock, const char const *msg) {
                                     if (vlc_pid != -1) {
                                         stop_vlc(vlc_pid);
                                     }
-                                    vlc_pid = start_vlc(p->folder);
+                                    //vlc_pid = start_vlc(p->folder);
                                 }
                             }
                         } else {
                             perror("access");
                         }
-                        free(fskip);
+                        //free(fskip);
                     }
-                    free(latest);
+                    //free(latest);
                 }
             }
         }
-        playlist_clear(playlists);
+        free(latests);
+        //playlist_clear(playlists);
     }
 
     if (!response) {
