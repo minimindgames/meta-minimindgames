@@ -609,7 +609,7 @@ VLC custom features:
 - Completely release audio when stop playing
 - Some audio controls like volume up/down
 
-You can find code in `webbox_http_vlc.c`. By default, it loads playlists from `/media/music`, so ount your music playlists there, e.g. from USB stick:
+You can find code in `webbox_http_vlc.c`. By default, it loads playlists from `/media/music`, so mount your music playlists there, e.g. from USB stick:
 ```
 $ mkdir /media/music
 $ mount /media/music /dev/sdb1

@@ -348,9 +348,14 @@ static int start_vlc(const char const *start_folder) {
                    }
                 }
 printf("time %d\n", (int)(ceil(libvlc_media_get_length(m)/1000)));
+
                 libvlc_media_parse (m); // need to call before libvlc_media_get_duration
                 int seconds = (int)(ceil(libvlc_media_get_duration(m)/1000));
                 printf(LOG_NAME "Media time %d\n", seconds);
+
+
+libvlc_state_t state = libvlc_media_get_state(m);
+printf("media state %d\n", state);
 
                 if (sleep(seconds) != 0) {
                     printf(LOG_NAME "Play interrupted.");
@@ -521,6 +526,7 @@ printf("fskip %s\n", fskip);
                                 if (response) {
                                     if (vlc_pid != -1) {
                                         stop_vlc(vlc_pid);
+                                        vlc_pid = -1;
                                     }
                                     //vlc_pid = start_vlc(p->folder);
                                 }
